@@ -1,0 +1,20 @@
+from collections.abc import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import async_session_factory
+from app.services.incident_service import IncidentService
+from app.services.ws_manager import ConnectionManager
+
+ws_manager = ConnectionManager()
+
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_factory() as session:
+        yield session
+
+
+async def get_incident_service(
+    db: AsyncSession,
+) -> IncidentService:
+    return IncidentService(db)
