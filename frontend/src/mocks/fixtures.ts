@@ -260,6 +260,20 @@ export const POSTMORTEM_FIXTURE: PostMortem = {
     users_affected: '~4,200',
     estimated_revenue_loss: '$47,600',
     services_degraded: ['order-service', 'inventory-service'],
+    metrics: {
+      failed_requests: { total: '12,847', peak_rate: '342/s' },
+      error_rate: { peak: '94.2%', baseline: '0.3%' },
+      latency_p99: { peak: '8,420 ms', baseline: '180 ms' },
+      revenue_loss: { total: '$47,600', rate: '$2,800/min' },
+      time_to_detect: '1m 52s',
+      time_to_resolve: '17 min',
+      services_affected: [
+        { name: 'checkout-service', status: 'down' },
+        { name: 'order-service', status: 'degraded' },
+        { name: 'inventory-service', status: 'degraded' },
+        { name: 'notification-service', status: 'healthy' },
+      ],
+    },
   },
   timeline: [
     {
