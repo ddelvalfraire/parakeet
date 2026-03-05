@@ -1,0 +1,13 @@
+export type IncidentStatus =
+  | 'triaging'
+  | 'investigating'
+  | 'root_cause'
+  | 'awaiting_approval'
+  | 'resolving'
+  | 'resolved'
+
+export type Severity = 'P1' | 'P2' | 'P3' | 'P4'
+export type RiskLevel = 'low' | 'medium' | 'high'
+export type ImpactLevel = 'primary' | 'downstream' | 'none'
+export type ServiceStatus = 'down' | 'degraded' | 'healthy'
+export type TimelineEventType = 'agent_output' | 'human_action' | 'system_event'
