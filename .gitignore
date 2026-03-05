@@ -1,0 +1,14 @@
+.claude/
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+*.db
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
