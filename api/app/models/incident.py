@@ -24,6 +24,7 @@ class IncidentRow(Base):
     created_at: Mapped[str]
     updated_at: Mapped[str]
     resolved_at: Mapped[str | None]
+    demo_scenario_id: Mapped[str | None] = mapped_column(default=None)
 
     timeline_events: Mapped[list[TimelineEventRow]] = relationship(
         back_populates="incident",

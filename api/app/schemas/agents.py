@@ -62,8 +62,17 @@ class RootCauseResult(BaseModel):
     contributing_factors: list[str]
 
 
+class PRInfo(BaseModel):
+    pr_number: int
+    pr_url: str
+    diff: str
+    file_path: str
+    branch: str
+
+
 class RemediationResult(BaseModel):
     options: list[RemediationOption]
+    pr: PRInfo | None = None
 
 
 class HumanDecision(BaseModel):

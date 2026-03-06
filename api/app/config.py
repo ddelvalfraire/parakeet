@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     # Use mock agents (deterministic, no LLM calls) for frontend development
     mock_agents: bool = False
 
+    # GitHub integration for live demo remediation
+    github_token: str = ""
+    demo_repo: str = ""           # owner/repo for the Online Boutique fork
+    demo_base_sha: str = ""       # commit SHA of the buggy main branch (for reset)
+
     model_config = {"env_prefix": "PARAKEET_", "env_file": _API_DIR / ".env", "extra": "ignore"}
 
 
