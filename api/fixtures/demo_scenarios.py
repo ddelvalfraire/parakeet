@@ -74,20 +74,24 @@ SCENARIOS: dict[str, DemoScenario] = {
             "INFO  shippingservice [ShipOrder] completed request",
         ],
     ),
-    # ---- Scenario 2: Node.js — currency conversion failures ----
+    # ---- Scenario 2: Node.js — currency conversion silent corruption ----
     #
     # Online Boutique source locations:
     #   src/currencyservice/server.js  ~line 138  convert() handler
-    #     → line 146: data[from.currency_code] — no validation that
-    #       from.currency_code exists in the data map. If it's missing,
-    #       division by undefined produces NaN, then accessing .units on
-    #       the carry result throws TypeError.
-    #     → line 109: _getCurrencyData() loads currency_conversion.json
-    #     → line 128: getSupportedCurrencies() returns valid codes
+    #     → data[from.currency_code] — no validation that the key exists.
+    #       When the currency code is not in currency_conversion.json,
+    #       data[code] returns undefined.  Division by undefined produces
+    #       NaN, which propagates through _carry() and Math.floor().
+    #       Proto serialization coerces NaN int fields to 0, so the gRPC
+    #       client receives Money{units:0, nanos:0} — a silent $0.00.
+    #     → The try/catch IS effective (callback is synchronous via
+    #       require()), but no error is thrown — NaN arithmetic is silent.
+    #       The app logs "conversion request successful" for every call.
+    #     → _getCurrencyData() loads ./data/currency_conversion.json
+    #     → getSupportedCurrencies() returns Object.keys(data)
     #
-    # The agent should find server.js from "currencyservice" + "convert"
-    # in the error logs, then spot the missing validation before the
-    # data[from.currency_code] lookup.
+    # The agent should find server.js from the monitoring anomaly alert,
+    # then trace the NaN propagation to the missing key validation.
     "currency-bug": DemoScenario(
         id="currency-bug",
         title="Currency Conversion Failures",
@@ -95,30 +99,42 @@ SCENARIOS: dict[str, DemoScenario] = {
         severity="P1",
         language="javascript",
         file_path="src/currencyservice/server.js",
-        description="34% of currency conversion requests fail with TypeError. "
-        "The convert function accesses data[from.currency_code] without validation, "
-        "causing crashes on unsupported currency codes.",
+        description=(
+            "34% of currency conversions silently return $0.00. "
+            "The convert() function divides by "
+            "data[from.currency_code] without checking the key "
+            "exists — unsupported codes yield undefined, producing "
+            "NaN that proto serialization coerces to zero."
+        ),
         alert={
             "source": "Datadog",
             "service": "currencyservice",
             "environment": "production",
-            "metric": "error_rate_5xx",
+            "metric": "conversion_zero_amount_rate",
             "value": "34%",
-            "threshold": "<1%",
-            "message": "Error rate spike on currencyservice — 34% of conversion "
-            "requests returning 5xx. TypeError in convert handler.",
+            "threshold": "<0.1%",
+            "message": (
+                "currencyservice anomaly — 34% of convert() "
+                "responses return Money{units: 0, nanos: 0}. "
+                "Silent data corruption, no application errors."
+            ),
         },
+        # pino logger: logger.info('Getting supported currencies...')
+        #              logger.info(`conversion request successful`)
+        #              logger.error(`conversion request failed: ${err}`)
+        # NOTE: NaN propagation does NOT throw, so the app logs
+        # "conversion request successful" even for corrupt results.
+        # Only the monitoring system detects the $0.00 anomaly.
         logs=[
             "INFO  currencyservice Getting supported currencies...",
-            "ERROR currencyservice conversion request failed: TypeError: Cannot read properties "
-            "of undefined (reading 'units')",
-            "ERROR currencyservice conversion request failed: TypeError: Cannot read properties "
-            "of undefined (reading 'units')",
+            "INFO  currencyservice conversion request successful",
+            "INFO  currencyservice conversion request successful",
             "INFO  currencyservice Getting supported currencies...",
-            "ERROR currencyservice conversion request failed: TypeError: Cannot read properties "
-            "of undefined (reading 'units')",
-            "WARN  monitoring  currencyservice error_rate=34% (threshold 1%) — "
-            "all failures are TypeError in convert() when from.currency_code not in data map",
+            "INFO  currencyservice conversion request successful",
+            "WARN  monitoring  currencyservice 34% of convert() "
+            "responses return Money{units: 0, nanos: 0} — NaN "
+            "coercion from division by undefined when "
+            "from.currency_code not in currency_conversion.json",
         ],
     ),
     # ---- Scenario 3: Python — recommendation crash ----
@@ -126,15 +142,28 @@ SCENARIOS: dict[str, DemoScenario] = {
     # Online Boutique source locations:
     #   src/recommendationservice/recommendation_server.py  ~line 70
     #     ListRecommendations() handler
-    #     → line 75: filtered_products = list(set(product_ids) - set(request.product_ids))
-    #       removes products already in the user's cart
+    #     → line 75: filtered_products = list(set(product_ids)
+    #                - set(request.product_ids))
+    #       Removes products already in the user's cart.
+    #     → line 78: num_return = max_responses
+    #       BUG: does NOT clamp to len(filtered_products).
     #     → line 79: random.sample(range(num_products), num_return)
-    #       crashes with ValueError when num_products is 0 (empty filtered list),
-    #       because random.sample() rejects sampling from an empty range.
+    #       Crashes with ValueError when num_products < max_responses
+    #       (5), i.e. when the user's cart contains enough products to
+    #       leave fewer than 5 remaining.
     #
-    # The agent should find recommendation_server.py from the
-    # "ListRecommendations" and "ValueError: Sample larger than population"
-    # log entries, then spot the missing empty-list guard before random.sample().
+    # NOTE — fork requirement: the upstream source has a min() guard
+    #   (num_return = min(max_responses, num_products)) that prevents
+    #   the crash.  The demo fork must change line ~78 to:
+    #       num_return = max_responses
+    #   so that random.sample(range(0), 5) actually crashes.
+    #
+    # Logger: logger.info("[Recv ListRecommendations] product_ids=..."
+    #   fires AFTER random.sample, so crashing requests produce NO
+    #   application log.  The ValueError is caught by the gRPC Python
+    #   framework (grpc._server) which logs "Exception calling
+    #   application: ..." at ERROR level.  There is NO try/except in
+    #   the handler itself.
     "recommendation-bug": DemoScenario(
         id="recommendation-bug",
         title="Recommendation Crash on Full Cart",
@@ -142,28 +171,53 @@ SCENARIOS: dict[str, DemoScenario] = {
         severity="P2",
         language="python",
         file_path="src/recommendationservice/recommendation_server.py",
-        description="Recommendation service crashes with ValueError when a user's cart "
-        "contains all available products. random.sample() is called without checking "
-        "for an empty filtered product list.",
+        description=(
+            "Recommendation service crashes with ValueError when "
+            "a user's cart contains all available products. "
+            "random.sample() is called with num_return=5 but "
+            "range(0) as the population, because "
+            "filtered_products is empty after removing cart items."
+        ),
         alert={
             "source": "Prometheus",
             "service": "recommendationservice",
             "environment": "production",
-            "metric": "error_rate_5xx",
+            "metric": "grpc_server_handled_total_UNKNOWN",
             "value": "12%",
             "threshold": "<1%",
-            "message": "5xx error rate spike on recommendationservice — 12% of "
-            "ListRecommendations requests failing with ValueError.",
+            "message": (
+                "recommendationservice gRPC UNKNOWN error rate "
+                "spike — 12% of ListRecommendations requests "
+                "failing. Correlates with large-cart sessions."
+            ),
         },
+        # Custom JSON logger (via pythonjsonlogger):
+        #   logger.info("[Recv ListRecommendations] product_ids=
+        #     {}".format(prod_list))
+        #   — fires AFTER random.sample, so only successful
+        #     requests produce this line.
+        # gRPC framework (grpc._server):
+        #   "Exception calling application: <exception>"
+        #   — logged at ERROR for unhandled handler exceptions.
         logs=[
-            "INFO  recommendationservice [Recv ListRecommendations] product_ids=[]",
-            "ERROR recommendationservice ValueError: Sample larger than population or is negative",
-            "INFO  recommendationservice [Recv ListRecommendations] product_ids=['OLJCESPC7Z']",
-            "INFO  recommendationservice [Recv ListRecommendations] product_ids=[]",
-            "ERROR recommendationservice ValueError: Sample larger than population or is negative",
-            "WARN  monitoring  recommendationservice error_rate=12% — all failures are "
-            "ValueError in ListRecommendations when filtered_products is empty after "
-            "removing products already in cart",
+            "INFO  recommendationservice "
+            "[Recv ListRecommendations] product_ids="
+            "['OLJCESPC7Z', '1YMWWN1N4O', '2ZYFJ3GM2N']",
+            "ERROR recommendationservice "
+            "Exception calling application: "
+            "ValueError: Sample larger than population "
+            "or is negative",
+            "INFO  recommendationservice "
+            "[Recv ListRecommendations] product_ids="
+            "['9SIQT8TOJO', 'L9ECAV7KIM']",
+            "ERROR recommendationservice "
+            "Exception calling application: "
+            "ValueError: Sample larger than population "
+            "or is negative",
+            "WARN  monitoring  recommendationservice "
+            "error_rate=12% — gRPC UNKNOWN errors, all from "
+            "carts containing all 9 catalog products "
+            "(filtered_products becomes empty)",
         ],
     ),
 }
