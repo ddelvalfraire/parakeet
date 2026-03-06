@@ -48,8 +48,26 @@ export interface RemediationOption {
   steps: string[]
 }
 
+export interface PRInfo {
+  pr_number: number
+  pr_url: string
+  diff: string
+  file_path: string
+  branch: string
+}
+
 export interface RemediationResult {
   options: RemediationOption[]
+  pr?: PRInfo
+}
+
+export interface DemoScenario {
+  id: string
+  title: string
+  service: string
+  severity: string
+  language: string
+  description: string
 }
 
 export interface HumanDecision {

@@ -7,6 +7,12 @@ import type {
   SubmitActionRequest,
   SubmitActionResponse,
   GenerateRetroResponse,
+  ListScenariosResponse,
+  StartDemoRequest,
+  StartDemoResponse,
+  ResetDemoResponse,
+  MergeFixRequest,
+  ResolveManuallyRequest,
 } from '@/types/api'
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -52,6 +58,45 @@ export const httpClient: ApiClient = {
   async generateRetro(incidentId: string): Promise<GenerateRetroResponse> {
     return request(`/incidents/${incidentId}/retro`, {
       method: 'POST',
+    })
+  },
+
+  // Demo
+  async listScenarios(): Promise<ListScenariosResponse> {
+    return request('/demo/scenarios')
+  },
+
+  async startDemo(req: StartDemoRequest): Promise<StartDemoResponse> {
+    return request('/demo/start', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    })
+  },
+
+  async resetDemo(): Promise<ResetDemoResponse> {
+    return request('/demo/reset', {
+      method: 'POST',
+    })
+  },
+
+  // Additional incident actions
+  async mergeFix(
+    incidentId: string,
+    req: MergeFixRequest,
+  ): Promise<SubmitActionResponse> {
+    return request(`/incidents/${incidentId}/merge-fix`, {
+      method: 'POST',
+      body: JSON.stringify(req),
+    })
+  },
+
+  async resolveManually(
+    incidentId: string,
+    req: ResolveManuallyRequest,
+  ): Promise<SubmitActionResponse> {
+    return request(`/incidents/${incidentId}/resolve-manual`, {
+      method: 'POST',
+      body: JSON.stringify(req),
     })
   },
 }
