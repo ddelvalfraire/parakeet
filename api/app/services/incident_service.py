@@ -163,6 +163,8 @@ class IncidentService:
         row = result.scalar_one_or_none()
         if row is None:
             return None
+        if row.status != IncidentStatus.awaiting_approval.value:
+            return IncidentStatus(row.status)
 
         now = _now()
         row.status = IncidentStatus.resolving.value
@@ -196,6 +198,8 @@ class IncidentService:
         row = result.scalar_one_or_none()
         if row is None:
             return None
+        if row.status != IncidentStatus.awaiting_approval.value:
+            return IncidentStatus(row.status)
 
         now = _now()
         row.status = IncidentStatus.resolving.value

@@ -4,6 +4,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import async_session_factory
 from app.dependencies import get_db, ws_manager
 from app.schemas.api import (
@@ -17,9 +18,9 @@ from app.schemas.api import (
     SubmitActionRequest,
     SubmitActionResponse,
 )
-from app.config import settings
-from app.services.incident_service import IncidentService
 from app.services.github_service import GitHubService
+from app.services.incident_service import IncidentService
+from app.services.tasks import log_task_exception
 
 if settings.mock_agents:
     from app.services.mock_pipeline import run_retro, run_triage_to_remediation
@@ -29,11 +30,6 @@ else:
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
-
-
-def _log_task_exception(task: asyncio.Task[None]) -> None:
-    if not task.cancelled() and task.exception():
-        logger.exception("Pipeline failed", exc_info=task.exception())
 
 
 def _service(db: AsyncSession) -> IncidentService:
@@ -67,7 +63,7 @@ async def create_incident(
         async with async_session_factory() as pipeline_db:
             await run_triage_to_remediation(pipeline_db, ws_manager, incident_id)
 
-    asyncio.create_task(_run_pipeline(summary.id)).add_done_callback(_log_task_exception)
+    asyncio.create_task(_run_pipeline(summary.id)).add_done_callback(log_task_exception)
     return CreateIncidentResponse(incident=summary)
 
 
@@ -135,11 +131,19 @@ async def merge_fix(
 
     # Merge the PR via GitHub API if available
     github: GitHubService | None = getattr(request.app.state, "github", None)
+    merge_failed = False
     if github and pr_number:
         try:
             await github.merge_pr(pr_number)
         except Exception:
-            logger.warning("Failed to merge PR #%s — continuing with resolution", pr_number)
+            logger.error("Failed to merge PR #%s", pr_number, exc_info=True)
+            merge_failed = True
+
+    if merge_failed:
+        raise HTTPException(
+            status_code=502,
+            detail=f"GitHub PR #{pr_number} merge failed — check the PR status on GitHub",
+        )
 
     new_status = await service.merge_fix(incident_id, body.approved_by, body.notes)
     if new_status is None:
@@ -150,7 +154,7 @@ async def merge_fix(
         async with async_session_factory() as retro_db:
             await run_retro(retro_db, ws_manager, iid)
 
-    asyncio.create_task(_run_retro(incident_id)).add_done_callback(_log_task_exception)
+    asyncio.create_task(_run_retro(incident_id)).add_done_callback(log_task_exception)
     return SubmitActionResponse(success=True, incident_status=new_status)
 
 
@@ -192,5 +196,5 @@ async def resolve_manually(
         async with async_session_factory() as retro_db:
             await run_retro(retro_db, ws_manager, iid)
 
-    asyncio.create_task(_run_retro(incident_id)).add_done_callback(_log_task_exception)
+    asyncio.create_task(_run_retro(incident_id)).add_done_callback(log_task_exception)
     return SubmitActionResponse(success=True, incident_status=new_status)

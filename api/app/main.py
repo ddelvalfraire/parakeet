@@ -36,7 +36,10 @@ async def lifespan(_app: FastAPI):
         logger.info("GitHub integration ENABLED (repo=%s)", settings.demo_repo)
     else:
         _app.state.github = None
-        logger.info("GitHub integration disabled — set PARAKEET_GITHUB_TOKEN and PARAKEET_DEMO_REPO to enable")
+        logger.info(
+            "GitHub integration disabled — set PARAKEET_GITHUB_TOKEN"
+            " and PARAKEET_DEMO_REPO to enable"
+        )
 
     yield
 

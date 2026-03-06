@@ -6,6 +6,8 @@ Production will swap to Amazon Nova 2.
 
 from __future__ import annotations
 
+import asyncio
+import concurrent.futures
 import logging
 from typing import TYPE_CHECKING, Literal
 
@@ -15,10 +17,13 @@ from app.agents.policies import severity_policy_as_prompt
 from app.config import settings
 
 if TYPE_CHECKING:
-    from fixtures.demo_scenarios import DemoScenario
     from app.services.github_service import GitHubService
+    from fixtures.demo_scenarios import DemoScenario
 
 logger = logging.getLogger(__name__)
+
+# Shared pool for _run_async — avoids creating/destroying a pool per tool call.
+_ASYNC_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 
 def propose_remediation(
@@ -218,11 +223,7 @@ def _run_async(coro):
     ``RuntimeError: This event loop is already running``.  We work around this
     by executing the coroutine in a *new* event loop on a background thread.
     """
-    import asyncio
-    import concurrent.futures
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(asyncio.run, coro).result()
+    return _ASYNC_POOL.submit(asyncio.run, coro).result()
 
 
 def create_demo_remediation_agent(
@@ -334,6 +335,7 @@ def create_demo_remediation_agent(
         cached = _file_cache.get(file_path)
         if not cached:
             cached = _run_async(github.get_file_content(file_path))
+            _file_cache[file_path] = cached
 
         branch = scenario.branch_name(incident_id)
 

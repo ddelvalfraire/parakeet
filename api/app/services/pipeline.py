@@ -20,6 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.investigation.agent import root_agent as investigation_agent
 from app.agents.remediation.agent import (
     create_demo_remediation_agent,
+)
+from app.agents.remediation.agent import (
     root_agent as remediation_agent,
 )
 from app.agents.retro.agent import root_agent as retro_agent
@@ -218,8 +220,12 @@ async def run_triage_to_remediation(
         inv_data = {
             "log_findings": log_findings,
             "affected_services": affected,
-            "estimated_users_affected": impact.get("estimated_users_affected") if impact else None,
-            "revenue_impact_per_minute": impact.get("revenue_impact_per_minute") if impact else None,
+            "estimated_users_affected": (
+                impact.get("estimated_users_affected") if impact else None
+            ),
+            "revenue_impact_per_minute": (
+                impact.get("revenue_impact_per_minute") if impact else None
+            ),
         }
         await _update_status(db, incident, IncidentStatus.root_cause)
         await _save_event(

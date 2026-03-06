@@ -8,9 +8,8 @@ Enable via PARAKEET_MOCK_AGENTS=true.
 """
 
 import asyncio
-import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -145,8 +144,6 @@ def _mock_triage(alert: dict[str, Any]) -> dict[str, Any]:
 
 def _mock_investigation(alert: dict[str, Any], triage: dict[str, Any]) -> dict[str, Any]:
     service = alert.get("service", "unknown-service")
-    metric = alert.get("metric", "error_rate")
-    value = alert.get("value", "N/A")
     ts = alert.get("timestamp", _now())
 
     log_findings = {
@@ -200,7 +197,10 @@ def _mock_remediation(alert: dict[str, Any], _root_cause: dict[str, Any]) -> lis
         {
             "id": "opt-1",
             "title": f"Rollback {service} to previous version",
-            "description": f"Revert {service} to last known good version to restore service immediately.",
+            "description": (
+                f"Revert {service} to last known good version"
+                " to restore service immediately."
+            ),
             "confidence": 0.94,
             "risk_level": "low",
             "estimated_recovery_time": "3-5 minutes",
@@ -428,7 +428,7 @@ def _mock_demo_remediation(scenario: DemoScenario) -> dict[str, Any]:
         ],
         "pr": {
             "pr_number": 42,
-            "pr_url": f"https://github.com/demo/online-boutique/pull/42",
+            "pr_url": "https://github.com/demo/online-boutique/pull/42",
             "diff": diff,
             "file_path": scenario.file_path,
             "branch": scenario.branch_prefix + "-mock",
@@ -479,7 +479,11 @@ async def run_triage_to_remediation(
 
     # --- 2. Investigation ---
     await asyncio.sleep(STAGE_DELAY)
-    inv_data = _mock_demo_investigation(scenario) if scenario else _mock_investigation(alert, triage_data)
+    inv_data = (
+        _mock_demo_investigation(scenario)
+        if scenario
+        else _mock_investigation(alert, triage_data)
+    )
     await _update_status(db, incident, IncidentStatus.root_cause)
     await _save_event(
         db, incident_id, IncidentStatus.investigating.value,

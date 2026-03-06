@@ -48,8 +48,11 @@ SCENARIOS: dict[str, DemoScenario] = {
         severity="P2",
         language="go",
         file_path="src/shippingservice/main.go",
-        description="All shipping quotes return $8.99 regardless of cart size. "
-        "The GetQuote handler passes a hardcoded 0 to CreateQuoteFromCount instead of the actual item count.",
+        description=(
+            "All shipping quotes return $8.99 regardless of cart size. "
+            "The GetQuote handler passes a hardcoded 0 to "
+            "CreateQuoteFromCount instead of the actual item count."
+        ),
         alert={
             "source": "Prometheus",
             "service": "shippingservice",

@@ -18,8 +18,9 @@ from app.schemas.api import (
     StartDemoRequest,
     StartDemoResponse,
 )
-from app.services.incident_service import IncidentService
 from app.services.github_service import GitHubService
+from app.services.incident_service import IncidentService
+from app.services.tasks import log_task_exception
 from fixtures.demo_scenarios import SCENARIOS
 
 if settings.mock_agents:
@@ -30,11 +31,6 @@ else:
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/demo", tags=["demo"])
-
-
-def _log_task_exception(task: asyncio.Task[None]) -> None:
-    if not task.cancelled() and task.exception():
-        logger.exception("Demo pipeline failed", exc_info=task.exception())
 
 
 def _get_github(request: Request) -> GitHubService | None:
@@ -84,7 +80,7 @@ async def start_demo(
         async with async_session_factory() as pipeline_db:
             await run_triage_to_remediation(pipeline_db, ws_manager, incident_id, github=github)
 
-    asyncio.create_task(_run_pipeline(summary.id)).add_done_callback(_log_task_exception)
+    asyncio.create_task(_run_pipeline(summary.id)).add_done_callback(log_task_exception)
     return StartDemoResponse(incident=summary)
 
 

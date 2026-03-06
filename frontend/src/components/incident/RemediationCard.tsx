@@ -102,7 +102,7 @@ export default function RemediationCard({
     setSubmitting(true)
     setApproveError(null)
     try {
-      await onMergeFix(notes)
+      await onMergeFix('')
     } catch (err) {
       setApproveError(
         err instanceof Error ? err.message : 'Merge failed. Please retry.',
