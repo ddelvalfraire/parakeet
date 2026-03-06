@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     # Use mock agents (deterministic, no LLM calls) for frontend development
     mock_agents: bool = False
 
+    # Similar-incidents embedding search
+    embedding_model: str = "all-MiniLM-L6-v2"
+    similarity_min_score: float = 0.3
+    similarity_max_results: int = 5
+
     # GitHub integration for live demo remediation
     github_token: str = ""
     demo_repo: str = ""           # owner/repo for the Online Boutique fork
