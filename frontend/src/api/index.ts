@@ -1,6 +1,5 @@
 export type { ApiClient } from './client'
 export { mockClient } from './mock'
+export { httpClient } from './http'
 
-// Replace with real client once openapi-typescript is generated:
-// export { realClient as api } from './real'
-export { mockClient as api } from './mock'
+export { httpClient as api } from './http'
