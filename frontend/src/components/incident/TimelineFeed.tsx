@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { cn } from '@/lib/utils'
-import { statusConfig } from '@/lib/styles'
+import { statusConfig, type StatusStyle } from '@/lib/styles'
 import { formatTime } from '@/lib/incident'
 import { Badge } from '@/components/ui/badge'
 import TriageCard from './TriageCard'
@@ -24,6 +24,8 @@ interface Props {
   incidentId: string
   approved: boolean
   onApprove: (optionId: string, notes: string) => Promise<void>
+  onMergeFix?: (notes: string) => Promise<void>
+  onResolveManually?: (explanation: string) => Promise<void>
 }
 
 export default function TimelineFeed({
@@ -31,6 +33,8 @@ export default function TimelineFeed({
   incidentId,
   approved,
   onApprove,
+  onMergeFix,
+  onResolveManually,
 }: Props) {
   const optionTitleMap = useMemo(() => {
     const remEvent = events.find((e) => e.stage === 'awaiting_approval')
@@ -67,6 +71,8 @@ export default function TimelineFeed({
             payload={event.payload as RemediationResult}
             approved={approved}
             onApprove={onApprove}
+            onMergeFix={onMergeFix}
+            onResolveManually={onResolveManually}
           />
         )
       case 'resolved':
@@ -84,7 +90,13 @@ export default function TimelineFeed({
   return (
     <div className="relative">
       {events.map((event, index) => {
-        const cfg = statusConfig[event.stage]
+        const cfg: StatusStyle = statusConfig[event.stage as keyof typeof statusConfig] ?? {
+          label: event.stage,
+          badge: 'bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300',
+          icon: 'text-gray-600 dark:text-gray-400',
+          dot: 'bg-gray-600 dark:bg-gray-400',
+          animate: false,
+        }
 
         return (
           <div key={event.id} className="relative flex gap-4 pb-8 last:pb-0">

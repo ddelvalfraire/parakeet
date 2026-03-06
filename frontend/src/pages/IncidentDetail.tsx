@@ -89,6 +89,74 @@ export default function IncidentDetail() {
     [id],
   )
 
+  const handleMergeFix = useCallback(
+    async (notes: string) => {
+      if (!id) return
+      const res = await api.mergeFix(id, {
+        approved_by: 'On-call Engineer',
+        notes: notes || undefined,
+      })
+      if (res.success) {
+        setIncident((prev) => {
+          if (!prev) return prev
+          const newEvent: TimelineEvent = {
+            id: `evt-${crypto.randomUUID()}`,
+            incident_id: prev.id,
+            timestamp: new Date().toISOString(),
+            stage: 'resolving',
+            type: 'human_action',
+            title: 'PR merged — fix deployed',
+            payload: {
+              approved_option_id: 'pr-fix',
+              approved_by: 'On-call Engineer',
+              notes: notes || null,
+            } as HumanDecision,
+          }
+          return {
+            ...prev,
+            status: res.incident_status,
+            timeline: [...prev.timeline, newEvent],
+          }
+        })
+      }
+    },
+    [id],
+  )
+
+  const handleResolveManually = useCallback(
+    async (explanation: string) => {
+      if (!id) return
+      const res = await api.resolveManually(id, {
+        explanation,
+        approved_by: 'On-call Engineer',
+      })
+      if (res.success) {
+        setIncident((prev) => {
+          if (!prev) return prev
+          const newEvent: TimelineEvent = {
+            id: `evt-${crypto.randomUUID()}`,
+            incident_id: prev.id,
+            timestamp: new Date().toISOString(),
+            stage: 'resolving',
+            type: 'human_action',
+            title: 'Resolved manually',
+            payload: {
+              approved_option_id: 'resolve-manual',
+              approved_by: 'On-call Engineer',
+              notes: explanation,
+            } as HumanDecision,
+          }
+          return {
+            ...prev,
+            status: res.incident_status,
+            timeline: [...prev.timeline, newEvent],
+          }
+        })
+      }
+    },
+    [id],
+  )
+
   const handleGenerateRetro = useCallback(async () => {
     if (!id) return
     setGeneratingRetro(true)
@@ -197,6 +265,8 @@ export default function IncidentDetail() {
             incidentId={incident.id}
             approved={isApproved}
             onApprove={handleApprove}
+            onMergeFix={handleMergeFix}
+            onResolveManually={handleResolveManually}
           />
         </section>
 
