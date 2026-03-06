@@ -1,6 +1,6 @@
 import type { IncidentSummary, Incident } from './incident'
 import type { IncidentStatus } from './domain'
-import type { PostMortem, DemoScenario } from './agents'
+import type { PostMortem, DemoScenario, SimilarIncident } from './agents'
 import type { Alert } from './alert'
 
 // GET /incidents
@@ -68,6 +68,12 @@ export interface MergeFixRequest {
 export interface ResolveManuallyRequest {
   explanation: string
   approved_by: string
+}
+
+// GET /incidents/:id/similar
+export interface SimilarIncidentsResponse {
+  similar: SimilarIncident[]
+  query_incident_id: string
 }
 
 // WebSocket — /ws/incidents/:id

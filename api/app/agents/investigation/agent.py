@@ -9,6 +9,7 @@ from typing import Literal
 from google.adk.agents import Agent
 
 from app.agents.policies import severity_policy_as_prompt
+from app.agents.tools.similar_incidents import get_similar_past_incidents
 from app.config import settings
 
 
@@ -133,6 +134,12 @@ When the primary service failure causes downstream degradation:
 - Mark the origin service as "primary" and all others as "downstream".
 - Trace the cascade: A→B→C, not just A and C.
 
+## Similar past incidents
+Before concluding your investigation, call `get_similar_past_incidents` with the service
+name and a summary of what you've found so far. If similar incidents exist, incorporate
+their root cause and remediation into your findings — this helps the root cause agent
+narrow down faster.
+
 ## Rules
 - Always call all three tool types. Never respond with only text.
 - Be specific and quantitative in your findings.
@@ -151,5 +158,10 @@ root_agent = Agent(
         " mapping blast radius, and estimating impact."
     ),
     instruction=INVESTIGATION_INSTRUCTION,
-    tools=[report_log_findings, report_affected_service, report_impact_summary],
+    tools=[
+        report_log_findings,
+        report_affected_service,
+        report_impact_summary,
+        get_similar_past_incidents,
+    ],
 )

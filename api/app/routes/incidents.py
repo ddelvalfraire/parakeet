@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -18,6 +18,7 @@ from app.schemas.api import (
     SubmitActionRequest,
     SubmitActionResponse,
 )
+from app.schemas.similar import SimilarIncidentsResponse
 from app.services.github_service import GitHubService
 from app.services.incident_service import IncidentService
 from app.services.tasks import log_task_exception
@@ -156,6 +157,21 @@ async def merge_fix(
 
     asyncio.create_task(_run_retro(incident_id)).add_done_callback(log_task_exception)
     return SubmitActionResponse(success=True, incident_status=new_status)
+
+
+@router.get("/{incident_id}/similar", response_model=SimilarIncidentsResponse)
+async def get_similar_incidents(
+    incident_id: str,
+    max_results: int = Query(default=5, le=10),
+    db: AsyncSession = Depends(get_db),
+) -> SimilarIncidentsResponse:
+    """Find incidents similar to this one based on past resolved incidents."""
+    from app.services.embedding import get_embedding_service
+    from app.services.similar_incidents import SimilarIncidentService
+
+    svc = SimilarIncidentService(db, get_embedding_service())
+    similar = await svc.find_similar(incident_id, max_results=max_results)
+    return SimilarIncidentsResponse(similar=similar, query_incident_id=incident_id)
 
 
 @router.post("/{incident_id}/resolve-manual", response_model=SubmitActionResponse)

@@ -109,3 +109,14 @@ export interface PostMortem {
   remediation_taken: string
   prevention: string[]
 }
+
+export interface SimilarIncident {
+  incident_id: string
+  service: string
+  severity: Severity
+  summary: string
+  root_cause: string
+  remediation_taken: string
+  resolved_at: string
+  similarity_score: number
+}

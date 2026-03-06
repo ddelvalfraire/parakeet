@@ -578,4 +578,8 @@ async def run_retro(
         "post_mortem": retro_data,
     })
 
+    # Index the resolved incident for similar-incident retrieval
+    from app.services.similar_index import index_resolved_incident
+    await index_resolved_incident(db, incident_id)
+
     return retro_data

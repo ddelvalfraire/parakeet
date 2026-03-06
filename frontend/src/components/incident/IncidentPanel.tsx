@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { severityConfig, statusConfig } from '@/lib/styles'
 import { formatTime } from '@/lib/incident'
 import type { Incident, IncidentStatus } from '@/types'
+import SimilarIncidentsCard from '@/components/incident/SimilarIncidentsCard'
 
 const PIPELINE_ORDER: IncidentStatus[] = [
   'triaging',
@@ -149,6 +150,9 @@ export default function IncidentPanel({
           })}
         </div>
       </div>
+
+      {/* Similar past incidents */}
+      <SimilarIncidentsCard incidentId={incident.id} />
 
       {/* Generate Post-Mortem button */}
       {isResolved && (

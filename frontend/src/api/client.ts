@@ -12,6 +12,7 @@ import type {
   ResetDemoResponse,
   MergeFixRequest,
   ResolveManuallyRequest,
+  SimilarIncidentsResponse,
 } from '@/types/api'
 
 export interface ApiClient {
@@ -29,4 +30,7 @@ export interface ApiClient {
   // Additional incident actions
   mergeFix(incidentId: string, req: MergeFixRequest): Promise<SubmitActionResponse>
   resolveManually(incidentId: string, req: ResolveManuallyRequest): Promise<SubmitActionResponse>
+
+  // Similar incidents
+  getSimilarIncidents(incidentId: string): Promise<SimilarIncidentsResponse>
 }
