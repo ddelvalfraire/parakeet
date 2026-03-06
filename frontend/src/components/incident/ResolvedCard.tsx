@@ -27,14 +27,6 @@ export default function ResolvedCard({ payload, incidentId }: Props) {
         <div>{payload.duration}</div>
         <div className="text-muted-foreground">Users affected</div>
         <div>{payload.impact.users_affected}</div>
-        {payload.impact.estimated_revenue_loss && (
-          <>
-            <div className="text-muted-foreground">Revenue loss</div>
-            <div className="font-medium text-red-700 dark:text-red-400">
-              {payload.impact.estimated_revenue_loss}
-            </div>
-          </>
-        )}
         <div className="text-muted-foreground">Services degraded</div>
         <div>{payload.impact.services_degraded.join(', ')}</div>
       </div>

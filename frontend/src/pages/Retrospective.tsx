@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router'
+import { useParams, Link } from 'react-router'
 import { api } from '@/api'
-import type { PostMortem, PostMortemMetrics } from '@/types/agents'
+import type { Incident } from '@/types/incident'
+import type { PostMortem } from '@/types/agents'
 import {
   severityConfig,
-  serviceStatusConfig,
   typography,
   spacing,
   layout,
 } from '@/lib/styles'
+import { formatTime } from '@/lib/incident'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,42 +18,46 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardAction,
 } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  ArrowLeft,
   Clock,
-  Download,
   AlertTriangle,
   Wrench,
   ShieldCheck,
   CircleDot,
   CircleCheckBig,
   Circle,
-  Flame,
-  Activity,
-  Timer,
-  TrendingUp,
-  Zap,
+  Users,
   Network,
+  ThumbsUp,
+  ThumbsDown,
+  Clover,
+  FileText,
+  Search,
 } from 'lucide-react'
 
 export default function Retrospective() {
   const { id } = useParams<{ id: string }>()
   const [retro, setRetro] = useState<PostMortem | null>(null)
+  const [incident, setIncident] = useState<Incident | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
     const controller = new AbortController()
 
-    api
-      .generateRetro(id)
-      .then((res) => {
+    Promise.all([
+      api.generateRetro(id),
+      api.getIncident(id),
+    ])
+      .then(([retroRes, incidentRes]) => {
         if (!controller.signal.aborted) {
-          setRetro(res.post_mortem)
+          setRetro(retroRes.post_mortem)
+          setIncident(incidentRes.incident)
         }
       })
       .catch((err) => {
@@ -85,143 +90,189 @@ export default function Retrospective() {
 
   const sevConfig = severityConfig[retro.severity]
   const lastIndex = retro.timeline.length - 1
-  const metrics = retro.impact.metrics
 
   return (
-    <div className={cn(spacing.page, layout.centeredContentNarrow)}>
-      {/* ── Header Card ──────────────────────────────────── */}
+    <div className={spacing.section}>
+      {/* Back navigation */}
+      <Button variant="ghost" size="sm" className="-ml-2 gap-1.5" asChild>
+        <Link to={id ? `/incident/${id}` : '/dashboard'}>
+          <ArrowLeft className="size-4" />
+          Back to Incident
+        </Link>
+      </Button>
+
+      {/* Header Card */}
       <Card className={cn('overflow-hidden border-l-4', sevConfig.border)}>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className={typography.h2}>{retro.title}</h1>
-            <Badge className={cn('font-semibold', sevConfig.badge)}>
-              {retro.severity} &mdash; {sevConfig.label}
-            </Badge>
+        <CardContent className="py-5">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Badge className={cn('font-semibold', sevConfig.badge)}>
+                {retro.severity} &mdash; {sevConfig.label}
+              </Badge>
+              <h1 className={typography.h2}>{retro.title}</h1>
+            </div>
+            <p className="flex items-center gap-1.5 text-muted-foreground mt-2">
+              <Clock className="size-4" />
+              <span className={typography.body}>Duration: {retro.duration}</span>
+            </p>
           </div>
-          <CardAction>
-            <Button variant="outline" size="sm">
-              <Download />
-              Export PDF
-            </Button>
-          </CardAction>
-          <p className="flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="size-4" />
-            <span className={typography.body}>{retro.duration}</span>
-          </p>
-        </CardHeader>
+
+          {/* Incident context strip */}
+          {incident && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                {incident.service}
+              </span>
+              <span>&middot;</span>
+              <span>{incident.environment}</span>
+              <span>&middot;</span>
+              <span className="font-mono text-xs">#{incident.id}</span>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
-      {/* ── Impact Dashboard ─────────────────────────────── */}
-      {metrics ? (
-        <ImpactDashboard metrics={metrics} />
-      ) : (
-        <ImpactFallback impact={retro.impact} />
-      )}
+      {/* Two-column layout: document + timeline */}
+      <div className={layout.splitPanel}>
+        {/* Left: Document content */}
+        <div className={spacing.section}>
+          {/* Executive Summary */}
+          <section>
+            <h2 className={cn(typography.h4, 'flex items-center gap-2 mb-3')}>
+              <FileText className="size-5 text-muted-foreground" />
+              Summary
+            </h2>
+            <p className={cn(typography.bodyLarge, 'leading-relaxed text-foreground')}>
+              {retro.summary}
+            </p>
+          </section>
 
-      {/* ── Timeline ─────────────────────────────────────── */}
-      <section className="mt-10">
-        <h2 className={cn(typography.h4, 'mb-6')}>Timeline</h2>
-        <div className={layout.timeline}>
-          {retro.timeline.map((entry, i) => {
-            const isFirst = i === 0
-            const isLast = i === lastIndex
-            const Icon = isLast
-              ? CircleCheckBig
-              : isFirst
-                ? CircleDot
-                : Circle
-            const dotColor = isLast
-              ? 'text-green-600 dark:text-green-400'
-              : isFirst
-                ? sevConfig.text
-                : 'text-muted-foreground/40'
+          <Separator />
 
-            return (
-              <div key={i} className="relative flex gap-4">
-                <Icon
-                  className={cn(
-                    'absolute -left-8 top-0.5 size-[14px] shrink-0 -translate-x-1/2',
-                    dotColor,
-                  )}
-                />
-                <span
-                  className={cn(
-                    typography.mono,
-                    'w-20 shrink-0 pt-px',
-                    isLast
-                      ? 'font-semibold text-green-600 dark:text-green-400'
-                      : 'text-muted-foreground',
-                  )}
-                >
-                  {entry.time}
-                </span>
-                <p
-                  className={cn(
-                    typography.body,
-                    isLast &&
-                      'font-semibold text-green-600 dark:text-green-400',
-                  )}
-                >
-                  {entry.event}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-      </section>
+          {/* Impact */}
+          <section>
+            <h2 className={cn(typography.h4, 'flex items-center gap-2 mb-3')}>
+              <Users className="size-5 text-muted-foreground" />
+              Impact
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Card className="transition-colors hover:bg-accent/50">
+                <CardContent>
+                  <span className={typography.label}>Users Affected</span>
+                  <p className={cn(typography.h2, 'mt-2')}>
+                    {retro.impact.users_affected}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="transition-colors hover:bg-accent/50">
+                <CardContent>
+                  <span className={typography.label}>Services Degraded</span>
+                  <p className={cn(typography.h2, 'mt-2')}>
+                    {retro.impact.services_degraded.length}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {retro.impact.services_degraded.map((s) => (
+                      <span
+                        key={s}
+                        className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
+                      >
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
 
-      <Separator className="my-10" />
+          <Separator />
 
-      {/* ── Root Cause ───────────────────────────────────── */}
-      <section>
-        <Card className="border-l-4 border-l-amber-500 dark:border-l-amber-600">
-          <CardHeader className="pb-0">
-            <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
+          {/* Root Cause */}
+          <section>
+            <h2 className={cn(typography.h4, 'flex items-center gap-2 mb-3')}>
               <AlertTriangle className="size-5 text-amber-500" />
               Root Cause
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </h2>
             <p className={cn(typography.bodyLarge, 'leading-relaxed')}>
               {retro.root_cause}
             </p>
-          </CardContent>
-        </Card>
-      </section>
+          </section>
 
-      {/* ── Remediation Taken ────────────────────────────── */}
-      <section className="mt-6">
-        <Card>
-          <CardHeader className="pb-0">
-            <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
+          {/* Contributing Factors */}
+          <section>
+            <h2 className={cn(typography.h4, 'flex items-center gap-2 mb-3')}>
+              <Search className="size-5 text-muted-foreground" />
+              Contributing Factors
+            </h2>
+            <ul className="space-y-2">
+              {retro.contributing_factors.map((factor, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="mt-2 inline-block size-1.5 shrink-0 rounded-full bg-amber-500" />
+                  <p className={cn(typography.body, 'leading-relaxed')}>
+                    {factor}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <Separator />
+
+          {/* Remediation Taken */}
+          <section>
+            <h2 className={cn(typography.h4, 'flex items-center gap-2 mb-3')}>
               <Wrench className="size-5 text-muted-foreground" />
-              Remediation Taken
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={cn(typography.body, 'text-muted-foreground')}>
+              Remediation
+            </h2>
+            <p className={cn(typography.body, 'leading-relaxed text-muted-foreground')}>
               {retro.remediation_taken}
             </p>
-          </CardContent>
-        </Card>
-      </section>
+          </section>
 
-      {/* ── Prevention ───────────────────────────────────── */}
-      <section className="mt-6 pb-4">
-        <Card>
-          <CardHeader className="pb-0">
-            <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
+          <Separator />
+
+          {/* Lessons Learned */}
+          <section>
+            <h2 className={cn(typography.h4, 'mb-4')}>Lessons Learned</h2>
+            <div className="space-y-4">
+              <LessonsSection
+                icon={<ThumbsUp className="size-4" />}
+                iconColor="text-green-600 dark:text-green-400"
+                title="What went well"
+                items={retro.lessons_learned.went_well}
+                dotColor="bg-green-600 dark:bg-green-400"
+              />
+              <LessonsSection
+                icon={<ThumbsDown className="size-4" />}
+                iconColor="text-red-600 dark:text-red-400"
+                title="What went wrong"
+                items={retro.lessons_learned.went_wrong}
+                dotColor="bg-red-600 dark:bg-red-400"
+              />
+              <LessonsSection
+                icon={<Clover className="size-4" />}
+                iconColor="text-amber-600 dark:text-amber-400"
+                title="Where we got lucky"
+                items={retro.lessons_learned.got_lucky}
+                dotColor="bg-amber-600 dark:bg-amber-400"
+              />
+            </div>
+          </section>
+
+          <Separator />
+
+          {/* Action Items */}
+          <section>
+            <h2 className={cn(typography.h4, 'flex items-center gap-2 mb-3')}>
               <ShieldCheck className="size-5 text-muted-foreground" />
-              Prevention
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+              Action Items
+            </h2>
             <ul className={spacing.stack}>
               {retro.prevention.map((item, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <Checkbox id={`prevention-${i}`} className="mt-0.5" />
+                  <Checkbox id={`action-${i}`} className="mt-0.5" />
                   <label
-                    htmlFor={`prevention-${i}`}
+                    htmlFor={`action-${i}`}
                     className={cn(
                       typography.body,
                       'cursor-pointer select-none leading-relaxed',
@@ -232,192 +283,119 @@ export default function Retrospective() {
                 </li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
-      </section>
+          </section>
+        </div>
+
+        {/* Right: Timeline sidebar */}
+        <aside className="lg:sticky lg:top-20 lg:self-start">
+          <Card>
+            <CardHeader>
+              <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
+                <Network className="size-5 text-muted-foreground" />
+                Timeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={layout.timeline}>
+                {retro.timeline.map((entry, i) => {
+                  const isFirst = i === 0
+                  const isLast = i === lastIndex
+                  const Icon = isLast
+                    ? CircleCheckBig
+                    : isFirst
+                      ? CircleDot
+                      : Circle
+                  const dotColor = isLast
+                    ? 'text-green-600 dark:text-green-400'
+                    : isFirst
+                      ? sevConfig.text
+                      : 'text-muted-foreground/40'
+
+                  const displayTime = entry.time.includes('T')
+                    ? formatTime(entry.time)
+                    : entry.time
+
+                  return (
+                    <div key={i} className="relative flex gap-3">
+                      <Icon
+                        className={cn(
+                          'absolute -left-8 top-0.5 size-[14px] shrink-0 -translate-x-1/2',
+                          dotColor,
+                        )}
+                      />
+                      <div className="min-w-0">
+                        <span
+                          className={cn(
+                            'font-mono text-xs tabular-nums block',
+                            isLast
+                              ? 'font-semibold text-green-600 dark:text-green-400'
+                              : 'text-muted-foreground',
+                          )}
+                        >
+                          {displayTime}
+                        </span>
+                        <p
+                          className={cn(
+                            'text-sm leading-snug mt-0.5',
+                            isLast &&
+                              'font-semibold text-green-600 dark:text-green-400',
+                          )}
+                        >
+                          {entry.event}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Impact Dashboard — 6 real operational metrics
+// Lessons Learned subsection
 // ---------------------------------------------------------------------------
 
-function ImpactDashboard({ metrics }: { metrics: PostMortemMetrics }) {
-  return (
-    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <MetricCard
-        icon={<Flame className="size-4" />}
-        iconBg="bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400"
-        label="Failed Requests"
-        value={metrics.failed_requests.total}
-        detail={`Peak ${metrics.failed_requests.peak_rate}`}
-        accent="destructive"
-      />
-      <MetricCard
-        icon={<Activity className="size-4" />}
-        iconBg="bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400"
-        label="Peak Error Rate"
-        value={metrics.error_rate.peak}
-        detail={`Baseline ${metrics.error_rate.baseline}`}
-        accent="destructive"
-      />
-      <MetricCard
-        icon={<TrendingUp className="size-4" />}
-        iconBg="bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400"
-        label="P99 Latency"
-        value={metrics.latency_p99.peak}
-        detail={`Baseline ${metrics.latency_p99.baseline}`}
-        accent="warning"
-      />
-      <MetricCard
-        icon={<Zap className="size-4" />}
-        iconBg="bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400"
-        label="Est. Revenue Loss"
-        value={metrics.revenue_loss.total}
-        detail={metrics.revenue_loss.rate}
-      />
-      <MetricCard
-        icon={<Timer className="size-4" />}
-        iconBg="bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
-        label="Time to Detect"
-        value={metrics.time_to_detect}
-        detail={`Resolved in ${metrics.time_to_resolve}`}
-      />
-      <ServiceHealthCard services={metrics.services_affected} />
-    </div>
-  )
-}
-
-function MetricCard({
+function LessonsSection({
   icon,
-  iconBg,
-  label,
-  value,
-  detail,
-  accent,
+  iconColor,
+  title,
+  items,
+  dotColor,
 }: {
   icon: React.ReactNode
-  iconBg: string
-  label: string
-  value: string
-  detail: string
-  accent?: 'destructive' | 'warning'
+  iconColor: string
+  title: string
+  items: string[]
+  dotColor: string
 }) {
+  if (items.length === 0) return null
   return (
-    <Card
-      className={cn(
-        'relative overflow-hidden transition-colors hover:bg-accent/50',
-        accent === 'destructive' &&
-          'border-red-200 dark:border-red-900/50',
-        accent === 'warning' &&
-          'border-amber-200 dark:border-amber-900/50',
-      )}
-    >
+    <Card>
       <CardContent>
-        <div className="flex items-center gap-2.5">
-          <span
-            className={cn(
-              'inline-flex size-7 items-center justify-center rounded-md',
-              iconBg,
-            )}
-          >
-            {icon}
-          </span>
-          <span className={typography.label}>{label}</span>
+        <div className="flex items-center gap-2 mb-2">
+          <span className={iconColor}>{icon}</span>
+          <span className={typography.label}>{title}</span>
         </div>
-        <p className={cn(typography.h2, 'mt-3 tabular-nums')}>{value}</p>
-        <p className={cn(typography.caption, 'mt-1')}>{detail}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-function ServiceHealthCard({
-  services,
-}: {
-  services: PostMortemMetrics['services_affected']
-}) {
-  return (
-    <Card className="transition-colors hover:bg-accent/50">
-      <CardContent>
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex size-7 items-center justify-center rounded-md bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">
-            <Network className="size-4" />
-          </span>
-          <span className={typography.label}>Blast Radius</span>
-        </div>
-        <p className={cn(typography.h2, 'mt-3')}>
-          {services.filter((s) => s.status !== 'healthy').length}
-          <span className="ml-1.5 text-base font-normal text-muted-foreground">
-            / {services.length} services
-          </span>
-        </p>
-        <ul className="mt-2 space-y-1">
-          {services.map((s) => {
-            const cfg = serviceStatusConfig[s.status]
-            return (
-              <li
-                key={s.name}
-                className="flex items-center gap-2 text-xs"
-              >
-                <span
-                  className={cn(
-                    'inline-block size-1.5 rounded-full',
-                    cfg.dot,
-                    cfg.animate && 'animate-pulse',
-                  )}
-                />
-                <span className="text-muted-foreground">{s.name}</span>
-                <span className={cn('ml-auto font-medium', cfg.text)}>
-                  {cfg.label}
-                </span>
-              </li>
-            )
-          })}
+        <ul className="space-y-1.5">
+          {items.map((item, i) => (
+            <li key={i} className="flex items-start gap-2.5">
+              <span
+                className={cn(
+                  'mt-2 inline-block size-1.5 shrink-0 rounded-full',
+                  dotColor,
+                )}
+              />
+              <p className={cn(typography.body, 'leading-relaxed')}>{item}</p>
+            </li>
+          ))}
         </ul>
       </CardContent>
     </Card>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Fallback for older post-mortems without rich metrics
-// ---------------------------------------------------------------------------
-
-function ImpactFallback({
-  impact,
-}: {
-  impact: PostMortem['impact']
-}) {
-  return (
-    <div className={cn(layout.cardGrid, 'mt-6')}>
-      <Card className="transition-colors hover:bg-accent/50">
-        <CardContent>
-          <span className={typography.label}>Users Affected</span>
-          <p className={cn(typography.h2, 'mt-2')}>{impact.users_affected}</p>
-        </CardContent>
-      </Card>
-      <Card className="transition-colors hover:bg-accent/50">
-        <CardContent>
-          <span className={typography.label}>Revenue Loss</span>
-          <p className={cn(typography.h2, 'mt-2')}>
-            {impact.estimated_revenue_loss ?? 'N/A'}
-          </p>
-        </CardContent>
-      </Card>
-      <Card className="transition-colors hover:bg-accent/50">
-        <CardContent>
-          <span className={typography.label}>Services Degraded</span>
-          <p className={cn(typography.h2, 'mt-2')}>
-            {impact.services_degraded.length}
-          </p>
-          <p className={cn(typography.caption, 'mt-1')}>
-            {impact.services_degraded.join(', ')}
-          </p>
-        </CardContent>
-      </Card>
-    </div>
   )
 }
 
@@ -427,40 +405,39 @@ function ImpactFallback({
 
 function RetroSkeleton() {
   return (
-    <div className={cn(spacing.page, layout.centeredContentNarrow)}>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-80" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-          </div>
-          <Skeleton className="h-4 w-48" />
-        </CardHeader>
-      </Card>
+    <div className={spacing.section}>
+      <Skeleton className="h-8 w-36" />
+      <Skeleton className="h-36 rounded-xl" />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent>
-              <div className="flex items-center gap-2.5">
-                <Skeleton className="size-7 rounded-md" />
-                <Skeleton className="h-4 w-24" />
-              </div>
-              <Skeleton className="mt-3 h-8 w-28" />
-              <Skeleton className="mt-2 h-3 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="mt-10 space-y-4">
-        <Skeleton className="h-6 w-24" />
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex gap-4">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-4 w-full max-w-md" />
+      <div className={layout.splitPanel}>
+        {/* Document skeleton */}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
           </div>
-        ))}
+          <Skeleton className="h-px w-full" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Skeleton className="h-28 rounded-lg" />
+            <Skeleton className="h-28 rounded-lg" />
+          </div>
+          <Skeleton className="h-px w-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+          <Skeleton className="h-px w-full" />
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-36" />
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-20 rounded-lg" />
+          </div>
+        </div>
+        {/* Timeline skeleton */}
+        <Skeleton className="h-64 rounded-lg" />
       </div>
     </div>
   )

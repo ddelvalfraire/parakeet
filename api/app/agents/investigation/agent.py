@@ -71,20 +71,17 @@ def report_affected_service(
 
 def report_impact_summary(
     estimated_users_affected: str,
-    revenue_impact_per_minute: str | None,
 ) -> dict:
-    """Report the overall user and revenue impact estimate.
+    """Report the overall user impact estimate.
 
     Args:
         estimated_users_affected: Human-readable estimate (e.g. "~12,000 users", "all EU users").
-        revenue_impact_per_minute: Estimated revenue loss per minute, or null if not applicable.
 
     Returns:
         The impact summary dict.
     """
     return {
         "estimated_users_affected": estimated_users_affected,
-        "revenue_impact_per_minute": revenue_impact_per_minute,
     }
 
 
@@ -109,13 +106,11 @@ You have three tools — call ALL of them for every investigation:
    as "down", "degraded", or "healthy" and whether the impact is "primary",
    "downstream", or "none".
 
-3. **`report_impact_summary`** — Estimate user and revenue impact with anchored
-   ranges, not false-precision single numbers.
+3. **`report_impact_summary`** — Estimate user impact with anchored ranges,
+   not false-precision single numbers.
    - Estimate user impact relative to the service's typical traffic and the
      scope of degradation (e.g. one AZ, one region, global).
    - Use ranges when uncertain ("5,000–10,000 users" not "7,342 users").
-   - For revenue, anchor on the service type: payment/checkout services imply
-     direct revenue loss; API/infrastructure services imply indirect impact.
    - If the incident affects a subset (one AZ, one region, one customer tier),
      scale estimates down accordingly rather than assuming full-service impact.
 

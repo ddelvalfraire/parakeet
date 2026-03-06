@@ -31,13 +31,18 @@ class RemediationOption(BaseModel):
 
 class PostMortemImpact(BaseModel):
     users_affected: str
-    estimated_revenue_loss: str | None
     services_degraded: list[str]
 
 
 class PostMortemTimelineEntry(BaseModel):
     time: str
     event: str
+
+
+class LessonsLearned(BaseModel):
+    went_well: list[str]
+    went_wrong: list[str]
+    got_lucky: list[str]
 
 
 class TriageResult(BaseModel):
@@ -52,7 +57,6 @@ class InvestigationResult(BaseModel):
     log_findings: LogFindings
     affected_services: list[AffectedService]
     estimated_users_affected: str
-    revenue_impact_per_minute: str | None
 
 
 class RootCauseResult(BaseModel):
@@ -85,8 +89,11 @@ class PostMortem(BaseModel):
     title: str
     duration: str
     severity: str
+    summary: str
     impact: PostMortemImpact
     timeline: list[PostMortemTimelineEntry]
     root_cause: str
+    contributing_factors: list[str]
     remediation_taken: str
+    lessons_learned: LessonsLearned
     prevention: list[str]
