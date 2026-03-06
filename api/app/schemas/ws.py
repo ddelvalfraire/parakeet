@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -15,4 +16,4 @@ class WSEvent(BaseModel):
     type: WSEventType
     incident_id: str
     timestamp: str
-    payload: dict
+    payload: dict[str, Any]

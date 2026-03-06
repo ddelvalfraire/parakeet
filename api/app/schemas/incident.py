@@ -1,40 +1,22 @@
+from typing import Any
+
 from pydantic import BaseModel
-
-from app.schemas.agents import (
-    HumanDecision,
-    InvestigationResult,
-    PostMortem,
-    RemediationResult,
-    RootCauseResult,
-    TriageResult,
-)
-from app.schemas.alert import Alert
-from app.schemas.domain import IncidentStatus, Severity, TimelineEventType
-
-TimelinePayload = (
-    TriageResult
-    | InvestigationResult
-    | RootCauseResult
-    | RemediationResult
-    | HumanDecision
-    | PostMortem
-)
 
 
 class TimelineEvent(BaseModel):
     id: str
     incident_id: str
     timestamp: str
-    stage: IncidentStatus
-    type: TimelineEventType
+    stage: str
+    type: str
     title: str
-    payload: TimelinePayload
+    payload: dict[str, Any]
 
 
 class IncidentSummary(BaseModel):
     id: str
-    status: IncidentStatus
-    severity: Severity
+    status: str
+    severity: str
     service: str
     environment: str
     summary: str
@@ -43,6 +25,6 @@ class IncidentSummary(BaseModel):
 
 
 class Incident(IncidentSummary):
-    alert: Alert
+    alert: dict[str, Any]
     timeline: list[TimelineEvent]
     resolved_at: str | None

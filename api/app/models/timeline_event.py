@@ -1,21 +1,28 @@
-from sqlalchemy import JSON, Column, ForeignKey, Index, String, Text
-from sqlalchemy.orm import relationship
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import JSON, ForeignKey, Index, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base
+
+if TYPE_CHECKING:
+    from app.models.incident import IncidentRow
 
 
 class TimelineEventRow(Base):
     __tablename__ = "timeline_events"
 
-    id = Column(String, primary_key=True)
-    incident_id = Column(String, ForeignKey("incidents.id"), nullable=False)
-    timestamp = Column(String, nullable=False)
-    stage = Column(String, nullable=False)
-    type = Column(String, nullable=False)
-    title = Column(Text, nullable=False)
-    payload = Column(JSON, nullable=False)
+    id: Mapped[str] = mapped_column(primary_key=True)
+    incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id"))
+    timestamp: Mapped[str]
+    stage: Mapped[str]
+    type: Mapped[str]
+    title: Mapped[str] = mapped_column(Text)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
 
-    incident = relationship("IncidentRow", back_populates="timeline_events")
+    incident: Mapped[IncidentRow] = relationship(back_populates="timeline_events")
 
     __table_args__ = (
         Index("ix_timeline_events_incident_id_timestamp", "incident_id", "timestamp"),
