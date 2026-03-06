@@ -1,0 +1,868 @@
+{
+  "eval_set_id": "triage_eval_001",
+  "name": "Triage Agent Evaluation",
+  "description": "Comprehensive test cases for alert classification across severities, categories, edge cases, and boundary conditions.",
+  "eval_cases": [
+    {
+      "eval_id": "p1_total_outage",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: payment-service in production. Metric error_rate at 100% (threshold 5%). Payment processing completely failed — all transactions returning 500. Started after deploy v2.14.0 at 14:02 UTC."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "payment-service",
+                  "environment": "production",
+                  "metric": "error_rate",
+                  "value": "100%",
+                  "threshold": "5%",
+                  "message": "Payment processing completely failed — all transactions returning 500. Started after deploy v2.14.0 at 14:02 UTC.",
+                  "severity": "P1",
+                  "category": "error_rate",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P1 — complete payment outage in production"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p1_data_breach",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: auth-service in production. Metric anomalous_access_patterns at 340 requests (threshold 10). Unusual bulk data export detected from admin API — source IP not in allow-list. Customer PII endpoints accessed."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "auth-service",
+                  "environment": "production",
+                  "metric": "anomalous_access_patterns",
+                  "value": "340 requests",
+                  "threshold": "10",
+                  "message": "Unusual bulk data export detected from admin API — source IP not in allow-list. Customer PII endpoints accessed.",
+                  "severity": "P1",
+                  "category": "security",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P1 — potential security breach with unauthorised PII access"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p1_database_unreachable",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: core-database in production. Metric connection_failures at 100% (threshold 1%). Primary RDS instance unreachable. All services depending on core-database returning errors. Failover to read replica has not triggered."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "core-database",
+                  "environment": "production",
+                  "metric": "connection_failures",
+                  "value": "100%",
+                  "threshold": "1%",
+                  "message": "Primary RDS instance unreachable. All services depending on core-database returning errors. Failover to read replica has not triggered.",
+                  "severity": "P1",
+                  "category": "availability",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P1 — primary database unreachable, all dependent services failing"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p1_data_corruption",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: billing-service in production. Metric data_consistency_check at FAIL (threshold PASS). Billing records show duplicate charges for 3,200 customers over the last hour. Invoice amounts do not match order totals. Data corruption detected in billing_ledger table."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "billing-service",
+                  "environment": "production",
+                  "metric": "data_consistency_check",
+                  "value": "FAIL",
+                  "threshold": "PASS",
+                  "message": "Billing records show duplicate charges for 3,200 customers over the last hour. Invoice amounts do not match order totals. Data corruption detected in billing_ledger table.",
+                  "severity": "P1",
+                  "category": "data_integrity",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P1 — billing data corruption with duplicate charges affecting 3,200 customers"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p2_latency_spike",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: api-gateway in production. Metric latency_p99 at 12400ms (threshold 2000ms). API response times spiked 6x after RDS connection pool exhaustion. Approximately 40% of requests timing out."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "api-gateway",
+                  "environment": "production",
+                  "metric": "latency_p99",
+                  "value": "12400ms",
+                  "threshold": "2000ms",
+                  "message": "API response times spiked 6x after RDS connection pool exhaustion. Approximately 40% of requests timing out.",
+                  "severity": "P2",
+                  "category": "latency",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P2 — major latency degradation on api-gateway from connection pool exhaustion"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p2_partial_availability",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: order-service in production. Metric healthy_host_count at 1 (threshold 3). Two of three instances failed health checks in us-east-1a. Orders still processing but at reduced capacity. Error rate climbing to 25%."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "order-service",
+                  "environment": "production",
+                  "metric": "healthy_host_count",
+                  "value": "1",
+                  "threshold": "3",
+                  "message": "Two of three instances failed health checks in us-east-1a. Orders still processing but at reduced capacity. Error rate climbing to 25%.",
+                  "severity": "P2",
+                  "category": "availability",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P2 — order-service running on single instance, degraded capacity"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p2_memory_leak",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: user-profile-service in production. Metric memory_utilization at 96% (threshold 85%). Memory usage has been climbing steadily over the past 4 hours. OOMKilled events on 2 of 5 pods. Service restarting repeatedly, causing intermittent 502 errors for ~30% of profile lookups."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "user-profile-service",
+                  "environment": "production",
+                  "metric": "memory_utilization",
+                  "value": "96%",
+                  "threshold": "85%",
+                  "message": "Memory usage has been climbing steadily over the past 4 hours. OOMKilled events on 2 of 5 pods. Service restarting repeatedly, causing intermittent 502 errors for ~30% of profile lookups.",
+                  "severity": "P2",
+                  "category": "resource",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P2 — memory leak on user-profile-service causing OOMKills and intermittent errors"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p2_replication_lag",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: inventory-service in production. Metric replication_lag_seconds at 45 (threshold 5). Database read replicas are 45 seconds behind primary. Customers seeing stale inventory counts — items showing as available but failing at checkout. Inconsistency growing."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "inventory-service",
+                  "environment": "production",
+                  "metric": "replication_lag_seconds",
+                  "value": "45",
+                  "threshold": "5",
+                  "message": "Database read replicas are 45 seconds behind primary. Customers seeing stale inventory counts — items showing as available but failing at checkout. Inconsistency growing.",
+                  "severity": "P2",
+                  "category": "data_integrity",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P2 — severe replication lag causing stale inventory data and checkout failures"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p3_resource_warning",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: recommendation-engine in production. Metric cpu_utilization at 87% (threshold 80%). CPU running hot on 2 of 6 instances. Recommendation latency up slightly but still serving traffic normally."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "recommendation-engine",
+                  "environment": "production",
+                  "metric": "cpu_utilization",
+                  "value": "87%",
+                  "threshold": "80%",
+                  "message": "CPU running hot on 2 of 6 instances. Recommendation latency up slightly but still serving traffic normally.",
+                  "severity": "P3",
+                  "category": "resource",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P3 — elevated CPU on recommendation-engine, minimal user impact"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p3_deployment_issue",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: notification-service in production. Metric error_rate at 12% (threshold 5%). Push notifications failing for Android users since deploy v3.8.1 rolled out 20 minutes ago. iOS unaffected."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "notification-service",
+                  "environment": "production",
+                  "metric": "error_rate",
+                  "value": "12%",
+                  "threshold": "5%",
+                  "message": "Push notifications failing for Android users since deploy v3.8.1 rolled out 20 minutes ago. iOS unaffected.",
+                  "severity": "P3",
+                  "category": "deployment",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P3 — Android push notifications broken after v3.8.1 deploy"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p3_background_job_failure",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: email-worker in production. Metric job_failure_rate at 35% (threshold 10%). Email delivery background jobs failing intermittently. Welcome emails and password resets delayed by 15-30 minutes. Users can still use the platform but not receiving timely emails."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "email-worker",
+                  "environment": "production",
+                  "metric": "job_failure_rate",
+                  "value": "35%",
+                  "threshold": "10%",
+                  "message": "Email delivery background jobs failing intermittently. Welcome emails and password resets delayed by 15-30 minutes. Users can still use the platform but not receiving timely emails.",
+                  "severity": "P3",
+                  "category": "error_rate",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P3 — email delivery jobs failing, non-critical emails delayed 15-30 minutes"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p4_staging_error",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: auth-service in staging. Metric error_rate at 15% (threshold 10%). Intermittent 401s on staging after config change. No production impact."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "auth-service",
+                  "environment": "staging",
+                  "metric": "error_rate",
+                  "value": "15%",
+                  "threshold": "10%",
+                  "message": "Intermittent 401s on staging after config change. No production impact.",
+                  "severity": "P4",
+                  "category": "error_rate",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P4 — staging auth errors after config change, no production impact"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p4_dev_noise",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: search-indexer in development. Metric disk_utilization at 92% (threshold 85%). Dev cluster running low on disk. Likely leftover test data from load testing."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "search-indexer",
+                  "environment": "development",
+                  "metric": "disk_utilization",
+                  "value": "92%",
+                  "threshold": "85%",
+                  "message": "Dev cluster running low on disk. Likely leftover test data from load testing.",
+                  "severity": "P4",
+                  "category": "resource",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P4 — dev disk usage high from leftover test data"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p4_deprecation_warning",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: analytics-pipeline in production. Metric deprecation_warnings at 150 (threshold 50). Increased deprecation warnings for pandas 1.x API usage. No functional impact — all queries returning correct results. Library upgrade scheduled for next quarter."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "analytics-pipeline",
+                  "environment": "production",
+                  "metric": "deprecation_warnings",
+                  "value": "150",
+                  "threshold": "50",
+                  "message": "Increased deprecation warnings for pandas 1.x API usage. No functional impact — all queries returning correct results. Library upgrade scheduled for next quarter.",
+                  "severity": "P4",
+                  "category": "deployment",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P4 — deprecation warnings in analytics pipeline, no functional impact"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "edge_staging_security",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: user-service in staging. Metric anomalous_access_patterns at 500 (threshold 20). Massive credential stuffing attack detected against staging login endpoint. Same IP range seen probing production last week."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "user-service",
+                  "environment": "staging",
+                  "metric": "anomalous_access_patterns",
+                  "value": "500",
+                  "threshold": "20",
+                  "message": "Massive credential stuffing attack detected against staging login endpoint. Same IP range seen probing production last week.",
+                  "severity": "P2",
+                  "category": "security",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P2 — credential stuffing attack on staging, same source previously targeted production"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "edge_ambiguous_severity",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: checkout-service in production. Metric error_rate at 8% (threshold 5%). Intermittent 503s on checkout. Some users retrying successfully. Error rate has been slowly climbing over the last 30 minutes."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "checkout-service",
+                  "environment": "production",
+                  "metric": "error_rate",
+                  "value": "8%",
+                  "threshold": "5%",
+                  "message": "Intermittent 503s on checkout. Some users retrying successfully. Error rate has been slowly climbing over the last 30 minutes.",
+                  "severity": "P2",
+                  "category": "error_rate",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P2 — checkout errors climbing in production, revenue-impacting"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "edge_duplicate_alert",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: payment-service in production. Metric error_rate at 100% (threshold 5%). Payment processing still down — all transactions returning 500. Same failure as the ongoing P1 incident declared 10 minutes ago for payment-service v2.14.0 deploy issue."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "payment-service",
+                  "environment": "production",
+                  "metric": "error_rate",
+                  "value": "100%",
+                  "threshold": "5%",
+                  "message": "Payment processing still down — all transactions returning 500. Same failure as the ongoing P1 incident declared 10 minutes ago for payment-service v2.14.0 deploy issue.",
+                  "severity": "P1",
+                  "category": "error_rate",
+                  "is_duplicate": true
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P1 duplicate — same payment-service outage already under active incident response"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "edge_vague_minimal_alert",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: unknown-service in production. Metric health_check at FAIL (threshold PASS). Service health check failing. No additional context available."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "unknown-service",
+                  "environment": "production",
+                  "metric": "health_check",
+                  "value": "FAIL",
+                  "threshold": "PASS",
+                  "message": "Service health check failing. No additional context available.",
+                  "severity": "P3",
+                  "category": "availability",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P3 — health check failure on unknown-service in production, limited context available"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "edge_credential_leak_production",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: ci-pipeline in production. Metric secret_scan_findings at 3 (threshold 0). Three AWS access keys found committed to public repository. Keys belong to production IAM roles with S3 and DynamoDB access. Commit pushed 12 minutes ago."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "ci-pipeline",
+                  "environment": "production",
+                  "metric": "secret_scan_findings",
+                  "value": "3",
+                  "threshold": "0",
+                  "message": "Three AWS access keys found committed to public repository. Keys belong to production IAM roles with S3 and DynamoDB access. Commit pushed 12 minutes ago.",
+                  "severity": "P1",
+                  "category": "security",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P1 — production AWS credentials leaked to public repository, immediate key rotation required"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "edge_deploy_causes_latency",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from Datadog: search-service in production. Metric latency_p99 at 8500ms (threshold 1500ms). Search response times degraded 5x since deploy v5.2.0 rolled out 8 minutes ago. New Elasticsearch query pattern appears to be doing full table scans. ~60% of search queries timing out."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "Datadog",
+                  "service": "search-service",
+                  "environment": "production",
+                  "metric": "latency_p99",
+                  "value": "8500ms",
+                  "threshold": "1500ms",
+                  "message": "Search response times degraded 5x since deploy v5.2.0 rolled out 8 minutes ago. New Elasticsearch query pattern appears to be doing full table scans. ~60% of search queries timing out.",
+                  "severity": "P2",
+                  "category": "latency",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P2 — search latency 5x degraded after v5.2.0 deploy, majority of queries timing out"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "edge_flapping_alert",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Alert from CloudWatch: cache-service in production. Metric availability at 94% (threshold 99%). Redis cluster flapping — nodes alternating between healthy and unhealthy every 2-3 minutes for the past 20 minutes. Intermittent cache misses causing elevated latency on dependent services. Third occurrence today."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "classify_alert",
+                "args": {
+                  "source": "CloudWatch",
+                  "service": "cache-service",
+                  "environment": "production",
+                  "metric": "availability",
+                  "value": "94%",
+                  "threshold": "99%",
+                  "message": "Redis cluster flapping — nodes alternating between healthy and unhealthy every 2-3 minutes for the past 20 minutes. Intermittent cache misses causing elevated latency on dependent services. Third occurrence today.",
+                  "severity": "P2",
+                  "category": "availability",
+                  "is_duplicate": false
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "P2 — Redis cluster flapping with recurring availability drops impacting dependent services"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

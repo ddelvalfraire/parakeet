@@ -1,0 +1,519 @@
+{
+  "eval_set_id": "investigation_eval_001",
+  "name": "Investigation Agent Evaluation",
+  "description": "Comprehensive test cases for log analysis, blast radius mapping, and impact estimation across incident types.",
+  "eval_cases": [
+    {
+      "eval_id": "p1_payment_outage",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Triage result: P1 incident on payment-service in production. Category: error_rate. Summary: Payment processing completely failed — all transactions returning 500 since deploy v2.14.0 at 14:02 UTC. Error rate at 100%, threshold was 5%. Source: CloudWatch."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_log_findings",
+                "args": {
+                  "error_pattern": "NullPointerException in PaymentProcessor.charge()",
+                  "first_occurrence": "14:02 UTC",
+                  "frequency": "~200/min",
+                  "affected_versions": ["v2.14.0"],
+                  "last_healthy_version": "v2.13.0",
+                  "correlated_event": "Deploy v2.14.0 at 14:02 UTC",
+                  "sample_stack_trace": "NullPointerException at PaymentProcessor.charge(PaymentProcessor.java:142)"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "payment-service",
+                  "status": "down",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "checkout-service",
+                  "status": "degraded",
+                  "impact": "downstream"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "order-service",
+                  "status": "degraded",
+                  "impact": "downstream"
+                }
+              },
+              {
+                "name": "report_impact_summary",
+                "args": {
+                  "estimated_users_affected": "~15,000 active users",
+                  "revenue_impact_per_minute": "$2,400/min"
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Investigation complete. Payment-service is fully down since v2.14.0 deploy. NullPointerException in PaymentProcessor.charge() at ~200/min. Checkout and order services degraded as downstream dependencies. Estimated ~15,000 users affected with ~$2,400/min revenue impact."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p2_latency_db_pool",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Triage result: P2 incident on api-gateway in production. Category: latency. Summary: API response times spiked 6x — latency_p99 at 12400ms (threshold 2000ms). RDS connection pool exhaustion suspected. ~40% of requests timing out. Source: Datadog."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_log_findings",
+                "args": {
+                  "error_pattern": "ConnectionPoolExhaustedException: unable to acquire connection within 5000ms",
+                  "first_occurrence": "09:45 UTC",
+                  "frequency": "~80/min",
+                  "affected_versions": ["v4.2.1"],
+                  "last_healthy_version": "v4.2.1",
+                  "correlated_event": "Traffic spike from marketing campaign at 09:30 UTC",
+                  "sample_stack_trace": null
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "api-gateway",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_impact_summary",
+                "args": {
+                  "estimated_users_affected": "~8,000 users experiencing timeouts",
+                  "revenue_impact_per_minute": "$800/min"
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Investigation complete. API gateway connection pool exhaustion triggered by traffic spike from marketing campaign. ~40% of requests timing out, affecting ~8,000 users with ~$800/min revenue impact."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p3_cpu_recommendation",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Triage result: P3 incident on recommendation-engine in production. Category: resource. Summary: CPU at 87% on 2 of 6 instances (threshold 80%). Recommendation latency slightly elevated but serving normally. Source: CloudWatch."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_log_findings",
+                "args": {
+                  "error_pattern": "Slow query warnings: recommendation scoring taking >500ms",
+                  "first_occurrence": "11:20 UTC",
+                  "frequency": "~20/min",
+                  "affected_versions": ["v1.8.3"],
+                  "last_healthy_version": "v1.8.3",
+                  "correlated_event": null,
+                  "sample_stack_trace": null
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "recommendation-engine",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_impact_summary",
+                "args": {
+                  "estimated_users_affected": "~2,000 users seeing slower recommendations",
+                  "revenue_impact_per_minute": null
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Investigation complete. Two recommendation-engine instances running hot with slow query warnings. No correlated deploy or event — likely organic traffic growth. Minimal user impact, no revenue impact."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p1_security_breach",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Triage result: P1 incident on auth-service in production. Category: security. Summary: Unusual bulk data export detected from admin API — 340 anomalous access patterns (threshold 10). Source IP not in allow-list. Customer PII endpoints accessed. Source: Datadog."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_log_findings",
+                "args": {
+                  "error_pattern": "Unauthorized admin API access from IP 203.0.113.42 — bulk GET requests to /api/admin/users/export and /api/admin/users/{id}/pii",
+                  "first_occurrence": "03:17 UTC",
+                  "frequency": "~340 requests over 22 minutes",
+                  "affected_versions": ["v6.1.0"],
+                  "last_healthy_version": "v6.1.0",
+                  "correlated_event": "Admin API token last rotated 90 days ago — likely compromised credential",
+                  "sample_stack_trace": null
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "auth-service",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "user-data-service",
+                  "status": "degraded",
+                  "impact": "downstream"
+                }
+              },
+              {
+                "name": "report_impact_summary",
+                "args": {
+                  "estimated_users_affected": "~50,000 users whose PII may have been exposed",
+                  "revenue_impact_per_minute": null
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Investigation complete. Unauthorized bulk data export from admin API using a likely compromised token. ~340 requests to PII endpoints from unauthorized IP over 22 minutes. ~50,000 users' PII potentially exposed. Auth-service and user-data-service affected."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p2_cascading_failure",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Triage result: P2 incident on cache-service in production. Category: availability. Summary: Redis cluster flapping — availability at 94% (threshold 99%). Nodes alternating between healthy and unhealthy every 2-3 minutes. Cache misses causing elevated latency on dependent services. Source: CloudWatch."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_log_findings",
+                "args": {
+                  "error_pattern": "RedisConnectionException: Connection reset by peer — cluster node failover in progress",
+                  "first_occurrence": "16:30 UTC",
+                  "frequency": "~150/min during flap cycles",
+                  "affected_versions": ["v2.3.0"],
+                  "last_healthy_version": "v2.3.0",
+                  "correlated_event": "Redis cluster maintenance window ended at 16:25 UTC — node rebalancing triggered",
+                  "sample_stack_trace": null
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "cache-service",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "api-gateway",
+                  "status": "degraded",
+                  "impact": "downstream"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "search-service",
+                  "status": "degraded",
+                  "impact": "downstream"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "user-profile-service",
+                  "status": "degraded",
+                  "impact": "downstream"
+                }
+              },
+              {
+                "name": "report_impact_summary",
+                "args": {
+                  "estimated_users_affected": "~20,000 users experiencing intermittent slowness across multiple features",
+                  "revenue_impact_per_minute": "$500/min"
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Investigation complete. Redis cluster flapping after maintenance window, causing cascading cache misses across api-gateway, search-service, and user-profile-service. ~20,000 users affected with intermittent slowness. ~$500/min revenue impact from degraded checkout experience."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p1_infrastructure_az_failure",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Triage result: P1 incident on multiple services in production. Category: availability. Summary: AWS us-east-1a availability zone experiencing connectivity issues. Multiple services reporting health check failures. Load balancer draining connections from affected zone. Source: CloudWatch."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_log_findings",
+                "args": {
+                  "error_pattern": "HealthCheckFailedException: instances in us-east-1a failing TCP health checks — network unreachable",
+                  "first_occurrence": "11:42 UTC",
+                  "frequency": "continuous — all us-east-1a instances affected",
+                  "affected_versions": ["multiple"],
+                  "last_healthy_version": "N/A — infrastructure failure, not code change",
+                  "correlated_event": "AWS us-east-1a connectivity degradation reported on AWS status page at 11:40 UTC",
+                  "sample_stack_trace": null
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "payment-service",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "order-service",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "user-profile-service",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "api-gateway",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_impact_summary",
+                "args": {
+                  "estimated_users_affected": "~30,000 users — approximately one-third of traffic routed through us-east-1a",
+                  "revenue_impact_per_minute": "$3,500/min"
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Investigation complete. AWS us-east-1a AZ failure impacting all services hosted in that zone. Payment, order, user-profile, and api-gateway services degraded with ~33% capacity loss. ~30,000 users affected with ~$3,500/min revenue impact. Infrastructure failure — not caused by code change."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p2_memory_leak",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Triage result: P2 incident on user-profile-service in production. Category: resource. Summary: Memory at 96% on 2 of 5 pods (threshold 85%). OOMKilled events causing intermittent 502 errors for ~30% of profile lookups. Memory climbing steadily over 4 hours. Source: Datadog."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_log_findings",
+                "args": {
+                  "error_pattern": "OOMKilled: container exceeded memory limit 2Gi — heap dump shows growing HashMap in UserCacheManager.loadUserProfiles()",
+                  "first_occurrence": "06:15 UTC",
+                  "frequency": "OOMKill events every ~45 minutes per affected pod",
+                  "affected_versions": ["v3.5.2"],
+                  "last_healthy_version": "v3.5.1",
+                  "correlated_event": "Deploy v3.5.2 at 02:00 UTC introduced new user profile caching logic",
+                  "sample_stack_trace": "java.lang.OutOfMemoryError: Java heap space at UserCacheManager.loadUserProfiles(UserCacheManager.java:87)"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "user-profile-service",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "api-gateway",
+                  "status": "degraded",
+                  "impact": "downstream"
+                }
+              },
+              {
+                "name": "report_impact_summary",
+                "args": {
+                  "estimated_users_affected": "~10,000 users experiencing intermittent profile loading failures",
+                  "revenue_impact_per_minute": "$200/min"
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Investigation complete. Memory leak in UserCacheManager introduced in v3.5.2 deploy, causing OOMKill events every ~45 minutes. 2 of 5 pods affected, causing ~30% error rate on profile lookups. ~10,000 users impacted with ~$200/min revenue impact."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p2_data_integrity_replication",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Triage result: P2 incident on inventory-service in production. Category: data_integrity. Summary: Database replication lag at 45 seconds (threshold 5s). Customers seeing stale inventory counts — items showing available but failing at checkout. Source: CloudWatch."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_log_findings",
+                "args": {
+                  "error_pattern": "InventoryCheckFailure: item_id=%s shows available=true on read replica but available=false on primary — stale read",
+                  "first_occurrence": "15:20 UTC",
+                  "frequency": "~50/min and increasing",
+                  "affected_versions": ["v2.1.0"],
+                  "last_healthy_version": "v2.1.0",
+                  "correlated_event": "Large batch import of 50,000 inventory updates started at 15:10 UTC",
+                  "sample_stack_trace": null
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "inventory-service",
+                  "status": "degraded",
+                  "impact": "primary"
+                }
+              },
+              {
+                "name": "report_affected_service",
+                "args": {
+                  "service": "checkout-service",
+                  "status": "degraded",
+                  "impact": "downstream"
+                }
+              },
+              {
+                "name": "report_impact_summary",
+                "args": {
+                  "estimated_users_affected": "~5,000 users encountering checkout failures from stale inventory",
+                  "revenue_impact_per_minute": "$600/min"
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Investigation complete. Replication lag caused by large batch inventory import overloading the replica. Stale reads causing checkout failures for ~5,000 users. Inventory and checkout services degraded. ~$600/min revenue impact."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

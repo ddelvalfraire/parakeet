@@ -1,0 +1,338 @@
+{
+  "eval_set_id": "retro_eval_001",
+  "name": "Retro Agent Evaluation",
+  "description": "Comprehensive test cases for post-mortem report generation covering deploy outages, latency incidents, security breaches, infrastructure failures, and lower-severity incidents.",
+  "eval_cases": [
+    {
+      "eval_id": "payment_outage_retro",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Generate a post-mortem for this resolved P1 incident:\n\nAlert: CloudWatch alert on payment-service in production at 14:02 UTC. error_rate at 100% (threshold 5%).\n\nTriage (14:03): P1 — complete payment outage, category error_rate.\n\nInvestigation (14:08): NullPointerException in PaymentProcessor.charge() at ~200/min since v2.14.0 deploy. payment-service down, checkout-service and order-service degraded downstream. ~15,000 users affected, ~$2,400/min revenue loss.\n\nRoot cause (14:12): Null pointer from missing null-check on discount field in v2.14.0. Confidence 0.95. No canary deploy, no automated rollback.\n\nRemediation (14:15): Rollback to v2.13.0 approved and executed.\n\nResolved (14:22): Service fully restored. Error rate back to 0%. Total duration: 20 minutes."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "write_post_mortem",
+                "args": {
+                  "title": "Payment processing outage due to null pointer exception in v2.14.0",
+                  "duration": "20 minutes",
+                  "severity": "P1",
+                  "users_affected": "~15,000 users",
+                  "estimated_revenue_loss": "~$48,000",
+                  "services_degraded": ["payment-service", "checkout-service", "order-service"],
+                  "timeline": [
+                    {"time": "14:02", "event": "Deploy v2.14.0 rolled out to payment-service"},
+                    {"time": "14:02", "event": "CloudWatch alert fired — error_rate 100%"},
+                    {"time": "14:03", "event": "Triage complete — P1 declared"},
+                    {"time": "14:08", "event": "Investigation identified NullPointerException in PaymentProcessor.charge()"},
+                    {"time": "14:12", "event": "Root cause confirmed — missing null-check on discount field in v2.14.0"},
+                    {"time": "14:15", "event": "Rollback to v2.13.0 approved and initiated"},
+                    {"time": "14:22", "event": "Rollback complete — service fully restored, error rate at 0%"}
+                  ],
+                  "root_cause": "Version 2.14.0 introduced a code change that removed null-safety on the discount field in the payment processing path. When customers without discount codes attempted to check out, the payment processor crashed with a NullPointerException, causing 100% of transactions to fail.",
+                  "remediation_taken": "Rolled back payment-service from v2.14.0 to v2.13.0, restoring full payment processing within 7 minutes of rollback initiation.",
+                  "prevention": [
+                    "Add null-check validation for all optional fields in PaymentProcessor before redeploying v2.14.0",
+                    "Implement canary deployment for payment-service — roll to 1 instance first with 5-minute bake time",
+                    "Configure automated rollback trigger when error_rate exceeds 10% within 2 minutes of deploy",
+                    "Add integration test covering checkout flow with and without discount codes"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Post-mortem complete. A 20-minute P1 outage caused by a null pointer exception in v2.14.0 affected ~15,000 users with an estimated $48,000 revenue loss. Key prevention items: canary deploys, automated rollback, and better null-safety validation."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "latency_retro",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Generate a post-mortem for this resolved P2 incident:\n\nAlert: Datadog alert on api-gateway in production at 09:45 UTC. latency_p99 at 12400ms (threshold 2000ms).\n\nTriage (09:47): P2 — major latency degradation, category latency.\n\nInvestigation (09:55): ConnectionPoolExhaustedException at ~80/min. Correlated with marketing campaign traffic spike at 09:30. api-gateway degraded, ~8,000 users timing out, ~$800/min revenue impact.\n\nRoot cause (10:02): RDS connection pool undersized for peak traffic. Campaign drove traffic beyond capacity. Confidence 0.85.\n\nRemediation (10:08): Connection pool max size doubled via config update and rolling restart.\n\nResolved (10:18): Latency back to baseline. Total duration: 33 minutes."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "write_post_mortem",
+                "args": {
+                  "title": "API gateway latency spike from RDS connection pool exhaustion during marketing campaign",
+                  "duration": "33 minutes",
+                  "severity": "P2",
+                  "users_affected": "~8,000 users",
+                  "estimated_revenue_loss": "~$26,400",
+                  "services_degraded": ["api-gateway"],
+                  "timeline": [
+                    {"time": "09:30", "event": "Marketing campaign launched, driving traffic spike"},
+                    {"time": "09:45", "event": "Datadog alert fired — p99 latency at 12,400ms"},
+                    {"time": "09:47", "event": "Triage complete — P2 declared"},
+                    {"time": "09:55", "event": "Investigation identified connection pool exhaustion correlated with traffic spike"},
+                    {"time": "10:02", "event": "Root cause confirmed — pool undersized for campaign traffic volume"},
+                    {"time": "10:08", "event": "Connection pool max size doubled, rolling restart initiated"},
+                    {"time": "10:18", "event": "Latency returned to baseline — incident resolved"}
+                  ],
+                  "root_cause": "The API gateway's RDS connection pool was configured with a maximum size suitable for normal traffic but insufficient for the traffic volume generated by a marketing campaign. When traffic exceeded the pool's capacity, new requests could not acquire database connections, leading to timeouts and a 6x latency spike.",
+                  "remediation_taken": "Doubled the RDS connection pool max size via configuration update and performed a rolling restart of api-gateway instances.",
+                  "prevention": [
+                    "Implement auto-scaling policy for api-gateway triggered by connection pool utilization above 70%",
+                    "Establish coordination process requiring marketing to notify engineering 48 hours before campaigns",
+                    "Add connection pool utilization as a dashboard metric with alerting at 60% and 80% thresholds",
+                    "Load test api-gateway with 3x normal traffic to validate headroom"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Post-mortem complete. A 33-minute P2 latency incident caused by connection pool exhaustion during a marketing campaign affected ~8,000 users with ~$26,400 revenue loss. Key prevention: auto-scaling, marketing coordination, and load testing."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "security_breach_retro",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Generate a post-mortem for this resolved P1 security incident:\n\nAlert: Datadog alert on auth-service in production at 03:47 UTC. anomalous_access_patterns at 340 (threshold 10).\n\nTriage (03:50): P1 — potential security breach with unauthorised PII access, category security.\n\nInvestigation (04:10): Unauthorized admin API access from IP 203.0.113.42 — bulk GET requests to PII endpoints. 340 requests over 22 minutes starting 03:17 UTC. Admin token last rotated 90 days ago. ~50,000 users' PII potentially exposed.\n\nRoot cause (04:25): Compromised admin API token — not rotated in 90 days, overly broad permissions, no IP allow-list enforcement. Confidence 0.85.\n\nRemediation phase 1 (04:30): Compromised token revoked, attacker IP blocked, admin export endpoint disabled.\nRemediation phase 2 (05:15): All admin tokens rotated, IP allow-list enforced, rate limiting deployed.\nRemediation phase 3 (07:00): Full security audit completed, affected user scope determined at 47,500 users.\n\nResolved (07:30): All containment and hardening measures in place. Breach notification process initiated. Total duration: 3 hours 43 minutes."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "write_post_mortem",
+                "args": {
+                  "title": "Customer PII data breach via compromised admin API token",
+                  "duration": "3 hours 43 minutes",
+                  "severity": "P1",
+                  "users_affected": "~47,500 users whose PII was potentially exposed",
+                  "estimated_revenue_loss": null,
+                  "services_degraded": ["auth-service", "user-data-service"],
+                  "timeline": [
+                    {"time": "03:17", "event": "Unauthorized access began — bulk PII export requests from IP 203.0.113.42"},
+                    {"time": "03:39", "event": "Last unauthorized request — 340 total requests over 22 minutes"},
+                    {"time": "03:47", "event": "Datadog anomalous access pattern alert fired"},
+                    {"time": "03:50", "event": "Triage complete — P1 security incident declared"},
+                    {"time": "04:10", "event": "Investigation confirmed unauthorized PII export via compromised admin token"},
+                    {"time": "04:25", "event": "Root cause identified — stale admin token with overly broad permissions"},
+                    {"time": "04:30", "event": "Phase 1 containment — token revoked, IP blocked, export endpoint disabled"},
+                    {"time": "05:15", "event": "Phase 2 hardening — all admin tokens rotated, IP allow-list and rate limiting deployed"},
+                    {"time": "07:00", "event": "Full security audit completed — 47,500 affected users identified"},
+                    {"time": "07:30", "event": "All containment measures verified, breach notification process initiated"}
+                  ],
+                  "root_cause": "An admin API token that had not been rotated in 90 days (exceeding the 30-day policy) was compromised and used from an unauthorized IP address. The token had overly broad permissions allowing bulk access to customer PII export endpoints. The attacker exploited the lack of IP allow-list enforcement and rate limiting to exfiltrate data for 22 minutes before detection.",
+                  "remediation_taken": "Immediate containment: revoked compromised token, blocked attacker IP, disabled export endpoint. Then rotated all admin tokens, enforced IP allow-lists, and deployed rate limiting. Full security audit identified 47,500 affected users.",
+                  "prevention": [
+                    "Enforce automated admin API token rotation every 30 days with alerts at 25 days",
+                    "Implement IP allow-list enforcement on all admin API endpoints — deny by default",
+                    "Deploy rate limiting (10 req/min) on all data export endpoints",
+                    "Scope admin tokens to minimum required permissions — separate read-only and export access",
+                    "Add real-time anomaly detection alerting on admin API access patterns with 5-minute evaluation window",
+                    "Implement automated token revocation when anomalous access pattern is detected"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Post-mortem complete. A 3h43m P1 security breach exposed PII of ~47,500 users via a compromised admin token. Key prevention: enforce token rotation, IP allow-listing, rate limiting, and real-time anomaly detection on admin APIs."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "infrastructure_failure_retro",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Generate a post-mortem for this resolved P1 infrastructure incident:\n\nAlert: CloudWatch alerts on multiple services in production at 11:42 UTC. Health check failures across us-east-1a.\n\nTriage (11:45): P1 — multi-service availability loss, category availability.\n\nInvestigation (11:55): AWS us-east-1a AZ connectivity degradation confirmed by AWS status page at 11:40 UTC. All instances in us-east-1a failing health checks. Payment-service, order-service, user-profile-service, api-gateway all degraded. ~30,000 users affected (~33% capacity loss), ~$3,500/min revenue impact.\n\nRoot cause (12:05): AWS us-east-1a network connectivity failure. ~33% of platform capacity was in that single AZ. Confidence 0.95.\n\nRemediation (12:10): Evacuated us-east-1a — deregistered instances from ALBs, scaled up us-east-1b and us-east-1c by 50%.\n\nPartially recovered (12:25): 80% capacity restored on remaining AZs.\n\nFully resolved (12:50): All services healthy at full capacity across us-east-1b and us-east-1c. AWS confirmed us-east-1a recovery at 13:15 but we maintained evacuation stance. Total duration: 1 hour 8 minutes."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "write_post_mortem",
+                "args": {
+                  "title": "Multi-service outage from AWS us-east-1a availability zone failure",
+                  "duration": "1 hour 8 minutes",
+                  "severity": "P1",
+                  "users_affected": "~30,000 users",
+                  "estimated_revenue_loss": "~$238,000",
+                  "services_degraded": ["payment-service", "order-service", "user-profile-service", "api-gateway"],
+                  "timeline": [
+                    {"time": "11:40", "event": "AWS us-east-1a network connectivity degradation began (confirmed by AWS status page)"},
+                    {"time": "11:42", "event": "CloudWatch alerts fired — health check failures across all us-east-1a instances"},
+                    {"time": "11:45", "event": "Triage complete — P1 declared for multi-service availability loss"},
+                    {"time": "11:55", "event": "Investigation confirmed AZ-wide failure — payment, order, profile, and gateway services affected"},
+                    {"time": "12:05", "event": "Root cause confirmed as AWS infrastructure issue — 33% capacity in affected AZ"},
+                    {"time": "12:10", "event": "AZ evacuation initiated — instances deregistered, scaling up in us-east-1b/1c"},
+                    {"time": "12:25", "event": "80% capacity restored across remaining availability zones"},
+                    {"time": "12:50", "event": "Full capacity restored — all services healthy on us-east-1b and us-east-1c"}
+                  ],
+                  "root_cause": "AWS experienced a network connectivity failure in the us-east-1a availability zone. Approximately one-third of the platform's compute capacity was hosted in this single AZ, and the load balancers were slow to drain connections from unhealthy instances. The platform lacked automated AZ evacuation, so manual intervention was required to scale up in healthy AZs.",
+                  "remediation_taken": "Manually evacuated us-east-1a by deregistering instances from ALBs and scaling up auto-scaling groups in us-east-1b and us-east-1c by 50%. Full capacity was restored across two AZs within 40 minutes of the evacuation decision.",
+                  "prevention": [
+                    "Implement automated AZ evacuation triggered by cross-AZ health monitoring — auto-scale remaining AZs when one AZ has >50% unhealthy instances",
+                    "Rebalance capacity to distribute evenly across 3 AZs with N+1 redundancy (each AZ should handle full load if one fails)",
+                    "Configure ALB to use faster health check intervals (5s instead of 30s) and lower unhealthy threshold for faster connection draining",
+                    "Add AZ-level availability dashboard with automated PagerDuty escalation when any AZ drops below 90% healthy",
+                    "Conduct quarterly AZ failure game days to validate failover procedures and train on-call engineers"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Post-mortem complete. A 68-minute P1 outage from AWS us-east-1a failure affected ~30,000 users with ~$238,000 revenue loss. Key prevention: automated AZ evacuation, balanced capacity distribution, and faster health check response."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "p3_resource_retro",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Generate a post-mortem for this resolved P3 incident:\n\nAlert: CloudWatch alert on recommendation-engine in production at 11:20 UTC. cpu_utilization at 87% (threshold 80%).\n\nTriage (11:25): P3 — elevated CPU with minimal user impact, category resource.\n\nInvestigation (11:40): Slow query warnings (~20/min) on recommendation scoring. 2 of 6 instances running hot. Same version running for weeks. No correlated event — organic traffic growth. ~2,000 users seeing slightly slower recommendations, no revenue impact.\n\nRoot cause (11:50): Organic traffic growth pushing CPU beyond capacity on a subset of instances. Recommendation scoring not optimized for current dataset size. Confidence 0.65.\n\nRemediation (12:00): Scaled recommendation-engine from 6 to 9 instances to distribute load.\n\nResolved (12:15): CPU utilization dropped to 58% across all instances. Total duration: 55 minutes."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "write_post_mortem",
+                "args": {
+                  "title": "Recommendation engine CPU saturation from organic traffic growth",
+                  "duration": "55 minutes",
+                  "severity": "P3",
+                  "users_affected": "~2,000 users",
+                  "estimated_revenue_loss": null,
+                  "services_degraded": ["recommendation-engine"],
+                  "timeline": [
+                    {"time": "11:20", "event": "CloudWatch alert fired — CPU at 87% on 2 of 6 instances"},
+                    {"time": "11:25", "event": "Triage complete — P3 declared, minimal user impact"},
+                    {"time": "11:40", "event": "Investigation confirmed organic growth — no correlated deploy or event"},
+                    {"time": "11:50", "event": "Root cause identified — capacity planning gap for growing traffic"},
+                    {"time": "12:00", "event": "Scaled from 6 to 9 instances to distribute load"},
+                    {"time": "12:15", "event": "CPU stabilized at 58% — incident resolved"}
+                  ],
+                  "root_cause": "The recommendation engine's scoring algorithm was consuming increasing CPU as organic traffic grew, but the instance count had not been adjusted. Two of six instances were handling disproportionate traffic and hit resource limits. There was no auto-scaling configured to respond to rising CPU utilization.",
+                  "remediation_taken": "Scaled the recommendation-engine from 6 to 9 instances, distributing load and bringing CPU utilization to 58% across all instances.",
+                  "prevention": [
+                    "Configure horizontal auto-scaling for recommendation-engine triggered at 70% CPU with a max of 12 instances",
+                    "Add capacity planning review to monthly operations checklist — track CPU trends against traffic growth",
+                    "Optimize recommendation scoring algorithm for current dataset size — profile query performance and add caching for repeated lookups"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Post-mortem complete. A 55-minute P3 incident from organic traffic growth on recommendation-engine. No revenue impact, ~2,000 users affected with slower results. Key prevention: auto-scaling, capacity planning reviews, and algorithm optimization."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "cascading_failure_retro",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Generate a post-mortem for this resolved P2 incident:\n\nAlert: CloudWatch alert on cache-service in production at 16:30 UTC. availability at 94% (threshold 99%).\n\nTriage (16:33): P2 — Redis cluster flapping causing cascading latency, category availability.\n\nInvestigation (16:50): RedisConnectionException — cluster node failover in progress. Started after maintenance window ended at 16:25 UTC. Cache-service (primary), api-gateway, search-service, and user-profile-service all degraded downstream. ~20,000 users with intermittent slowness, ~$500/min revenue impact.\n\nRoot cause (17:05): Redis cluster maintenance triggered node rebalancing that destabilized the cluster. Rebalancing caused repeated leader election, making nodes flap between healthy and unhealthy. Confidence 0.8.\n\nRemediation attempt 1 (17:10): Restarted flapping nodes — failed, they continued flapping after restart.\nRemediation attempt 2 (17:25): Manually pinned cluster leader and disabled auto-rebalancing. Cluster stabilized.\n\nResolved (17:40): All services recovered. Cache hit rates back to baseline. Total duration: 1 hour 10 minutes."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "write_post_mortem",
+                "args": {
+                  "title": "Cascading service degradation from Redis cluster instability after maintenance",
+                  "duration": "1 hour 10 minutes",
+                  "severity": "P2",
+                  "users_affected": "~20,000 users",
+                  "estimated_revenue_loss": "~$35,000",
+                  "services_degraded": ["cache-service", "api-gateway", "search-service", "user-profile-service"],
+                  "timeline": [
+                    {"time": "16:25", "event": "Redis cluster maintenance window ended — node rebalancing triggered automatically"},
+                    {"time": "16:30", "event": "CloudWatch alert fired — cache-service availability dropped to 94%"},
+                    {"time": "16:33", "event": "Triage complete — P2 declared for cascading latency impact"},
+                    {"time": "16:50", "event": "Investigation confirmed Redis cluster flapping affecting 4 downstream services"},
+                    {"time": "17:05", "event": "Root cause identified — maintenance-triggered rebalancing destabilized cluster"},
+                    {"time": "17:10", "event": "First remediation attempt — node restart — failed, flapping continued"},
+                    {"time": "17:25", "event": "Second remediation — manually pinned leader and disabled auto-rebalancing"},
+                    {"time": "17:40", "event": "Cluster stabilized, all services recovered, cache hit rates at baseline"}
+                  ],
+                  "root_cause": "The Redis cluster maintenance window completed at 16:25 and triggered an automatic node rebalancing process. The rebalancing caused repeated leader elections, making cluster nodes alternate between healthy and unhealthy states every 2-3 minutes. This cascaded to all services depending on the cache, causing intermittent cache misses and elevated latency across the platform.",
+                  "remediation_taken": "Initial node restart was ineffective. Resolved by manually pinning the cluster leader and disabling automatic rebalancing, which allowed the cluster to stabilize. All dependent services recovered within 15 minutes of cluster stabilization.",
+                  "prevention": [
+                    "Configure Redis cluster maintenance to use controlled rebalancing with one-node-at-a-time migration instead of parallel rebalancing",
+                    "Add circuit breakers in api-gateway, search-service, and user-profile-service for cache failures — fall back to direct database queries during cache outages",
+                    "Create runbook for Redis cluster instability with step-by-step remediation (including leader pinning procedure)",
+                    "Schedule Redis maintenance during low-traffic windows (02:00-04:00 UTC) to minimize blast radius",
+                    "Add Redis cluster stability monitoring — alert on leader election frequency exceeding 2 per hour"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Post-mortem complete. A 70-minute P2 incident from Redis cluster instability after maintenance cascaded across 4 services, affecting ~20,000 users with ~$35,000 revenue loss. Key prevention: controlled rebalancing, cache circuit breakers, and maintenance window scheduling."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

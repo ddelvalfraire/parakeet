@@ -1,0 +1,474 @@
+{
+  "eval_set_id": "remediation_eval_001",
+  "name": "Remediation Agent Evaluation",
+  "description": "Comprehensive test cases for remediation option generation covering rollbacks, hotfixes, security containment, infrastructure failover, and data recovery.",
+  "eval_cases": [
+    {
+      "eval_id": "rollback_deploy",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Root cause analysis for P1 payment-service outage:\n\nProbable cause: Null pointer exception in PaymentProcessor.charge() introduced in v2.14.0 due to missing null-check on discount field. Confidence: 0.95.\n\nEvidence: Error appeared at exactly 14:02 matching deploy time. v2.13.0 had zero occurrences. 100% error rate immediately — not gradual.\n\nContributing factors: No canary rollout, missing null-safety validation, no automated rollback on error spike."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "rollback",
+                  "title": "Rollback to v2.13.0",
+                  "description": "Revert to the last known healthy version. This is the safest option given the high confidence that v2.14.0 caused the outage.",
+                  "confidence": 0.95,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "5-10 minutes",
+                  "steps": [
+                    "Initiate rollback of payment-service to v2.13.0 via deployment pipeline",
+                    "Monitor error rate — should drop to 0 within 2-3 minutes of rollback completing",
+                    "Verify checkout-service and order-service recover as upstream dependency restores",
+                    "Confirm payment processing is functional by checking transaction success rate"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "hotfix",
+                  "title": "Hotfix null-check in PaymentProcessor.charge()",
+                  "description": "Add null-check for the discount field and deploy as v2.14.1. Preserves the v2.14.0 changes but carries risk of deploying under pressure.",
+                  "confidence": 0.85,
+                  "risk_level": "medium",
+                  "estimated_recovery_time": "20-30 minutes",
+                  "steps": [
+                    "Add null-check guard on discount field in PaymentProcessor.charge()",
+                    "Run payment unit test suite to validate fix",
+                    "Deploy v2.14.1 with canary to 1 instance first",
+                    "Monitor error rate on canary for 5 minutes before full rollout",
+                    "Full rollout and verify transaction success rate"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Recommend starting with rollback to v2.13.0 — lowest risk and fastest recovery given the high confidence root cause. The hotfix can be prepared and deployed after service is restored."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "scale_and_tune",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Root cause analysis for P2 api-gateway latency:\n\nProbable cause: RDS connection pool undersized for traffic volume. Marketing campaign drove traffic beyond pool capacity, causing exhaustion after 15 minutes. Confidence: 0.85.\n\nEvidence: Traffic spike at 09:30, errors at 09:45 — lag consistent with pool saturation. Same version was healthy before spike.\n\nContributing factors: Pool max size not tuned for peak, no auto-scaling on pool utilization, marketing not coordinated with engineering."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "increase_pool",
+                  "title": "Increase RDS connection pool size",
+                  "description": "Increase the max pool size to handle current traffic volume. Low risk as it only allows more connections to the database.",
+                  "confidence": 0.85,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "5-10 minutes",
+                  "steps": [
+                    "Update connection pool max_size from current value to 2x in api-gateway config",
+                    "Rolling restart of api-gateway instances to pick up new config",
+                    "Monitor connection pool utilization and p99 latency during restart",
+                    "Verify latency returns to baseline within 5 minutes"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "scale_out",
+                  "title": "Scale out api-gateway instances",
+                  "description": "Add more api-gateway instances to distribute the connection load. Spreads the traffic across more pools.",
+                  "confidence": 0.75,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "10-15 minutes",
+                  "steps": [
+                    "Scale api-gateway from current instance count to 2x via auto-scaling group",
+                    "Wait for new instances to pass health checks",
+                    "Monitor load balancer to confirm traffic distribution across new instances",
+                    "Verify p99 latency drops below 2000ms threshold"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Recommend increasing the connection pool size first — it's the most targeted fix for the root cause. Scaling out is a good backup if pool tuning alone doesn't resolve it."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "security_containment",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Root cause analysis for P1 auth-service security breach:\n\nProbable cause: Compromised admin API token used from unauthorized IP 203.0.113.42 to bulk-export customer PII. Token not rotated in 90 days with overly broad permissions. Confidence: 0.85.\n\nEvidence: Access from non-allow-listed IP. Token 90 days old, exceeding 30-day rotation policy. Bulk sequential export pattern inconsistent with normal admin usage.\n\nContributing factors: No IP allow-list enforcement, no token rotation enforcement, overly broad token permissions, no rate limiting on admin API."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "containment",
+                  "title": "Immediate containment — revoke token and block IP",
+                  "description": "Revoke the compromised admin API token and block the attacker IP. This stops ongoing data exfiltration immediately while preserving forensic evidence.",
+                  "confidence": 0.95,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "5-10 minutes",
+                  "steps": [
+                    "Revoke admin API token ID associated with the compromised credential",
+                    "Add IP 203.0.113.42 and its /24 subnet to WAF block list",
+                    "Disable the /api/admin/users/export endpoint temporarily via feature flag",
+                    "Verify no further unauthorized access in auth-service logs",
+                    "Preserve all access logs and audit trails for forensic analysis"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "rotate_and_harden",
+                  "title": "Rotate all admin tokens and enforce access controls",
+                  "description": "Rotate all admin API tokens, enforce IP allow-listing, and add rate limiting. Prevents further exploitation even if other tokens are compromised.",
+                  "confidence": 0.85,
+                  "risk_level": "medium",
+                  "estimated_recovery_time": "30-60 minutes",
+                  "steps": [
+                    "Rotate all admin API tokens — not just the compromised one",
+                    "Enable IP allow-list enforcement on all admin API endpoints",
+                    "Deploy rate limiting (10 requests/min) on admin data export endpoints",
+                    "Scope admin tokens to minimum required permissions (remove blanket PII read access)",
+                    "Notify affected admin users to re-authenticate with new credentials"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "notify_and_audit",
+                  "title": "Full security audit and user notification",
+                  "description": "Conduct a comprehensive security audit of all admin access patterns and prepare notification for affected users. Required for regulatory compliance.",
+                  "confidence": 0.7,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "2-4 hours",
+                  "steps": [
+                    "Run comprehensive audit of all admin API access over the past 90 days",
+                    "Identify exact scope of data exposure — which user records were accessed",
+                    "Prepare user notification for ~50,000 potentially affected users per breach notification requirements",
+                    "Engage legal team for regulatory compliance assessment (GDPR, CCPA)",
+                    "Generate forensic report documenting the full attack timeline and scope"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Recommend immediate containment first — revoke the token and block the IP to stop ongoing exfiltration. Then rotate all admin tokens and harden access controls. Finally, conduct a full security audit and prepare user notifications for compliance."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "infrastructure_failover",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Root cause analysis for P1 multi-service outage:\n\nProbable cause: AWS us-east-1a availability zone network connectivity failure causing all instances in that AZ to fail health checks. ~33% of capacity in us-east-1a. Confidence: 0.95.\n\nEvidence: AWS status page confirmed us-east-1a degradation at 11:40. All affected services in us-east-1a. Multiple services affected simultaneously with no code changes.\n\nContributing factors: No multi-AZ failover automation, 33% capacity in single AZ, no cross-AZ health monitoring."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "evacuate_az",
+                  "title": "Evacuate us-east-1a and scale remaining AZs",
+                  "description": "Remove all us-east-1a instances from load balancers and scale up instances in us-east-1b and us-east-1c to absorb the traffic. Safest option as it works with the AZ failure rather than against it.",
+                  "confidence": 0.9,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "10-15 minutes",
+                  "steps": [
+                    "Force-deregister all us-east-1a instances from ALB target groups to stop routing traffic to unhealthy hosts",
+                    "Scale up auto-scaling groups in us-east-1b and us-east-1c by 50% to absorb redirected traffic",
+                    "Wait for new instances to pass health checks and begin serving traffic",
+                    "Monitor error rates and latency across all services to confirm recovery",
+                    "Verify payment-service, order-service, user-profile-service, and api-gateway are healthy"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "regional_failover",
+                  "title": "Failover to us-west-2 disaster recovery region",
+                  "description": "If AZ evacuation is insufficient or the issue spreads to other AZs, activate the DR region. Higher risk due to DNS propagation and data replication lag.",
+                  "confidence": 0.75,
+                  "risk_level": "high",
+                  "estimated_recovery_time": "30-45 minutes",
+                  "steps": [
+                    "Verify us-west-2 DR stack is healthy and data replication is current",
+                    "Update Route 53 DNS failover records to point to us-west-2 endpoints",
+                    "Switch RDS to promote us-west-2 read replica to primary",
+                    "Monitor DNS propagation and traffic shift to us-west-2",
+                    "Validate all critical flows (payment, checkout, auth) in the DR region"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Recommend AZ evacuation first — scale up remaining AZs and deregister us-east-1a instances. This is safest and fastest. Regional failover to us-west-2 is the backup if the issue spreads beyond a single AZ."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "no_rollback_feature_flag",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Root cause analysis for P2 search-service latency:\n\nProbable cause: Feature flag 'enable_fuzzy_search_v2' toggled ON at 10:12 UTC activated expensive Elasticsearch query path causing timeouts. Confidence: 0.9.\n\nEvidence: Timeouts began 3 minutes after flag toggle. Same code version healthy for 2 weeks. Error pattern is specifically ES query timeout matching the flag's scope.\n\nContributing factors: No load testing before flag enable, flag toggled to 100% without gradual rollout, no query performance guardrails."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "disable_flag",
+                  "title": "Disable 'enable_fuzzy_search_v2' feature flag",
+                  "description": "Toggle the feature flag back to OFF to immediately revert to the previous search query path. Fastest and safest recovery since no code deploy is needed.",
+                  "confidence": 0.95,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "2-5 minutes",
+                  "steps": [
+                    "Toggle 'enable_fuzzy_search_v2' to OFF in LaunchDarkly",
+                    "Verify search-service picks up the flag change (check feature flag evaluation logs)",
+                    "Monitor Elasticsearch query latency — should return to baseline within 1-2 minutes",
+                    "Confirm search results are returning correctly on the old query path",
+                    "Verify product-catalog-service downstream latency also recovers"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "gradual_rollout",
+                  "title": "Re-enable flag with gradual rollout and query optimization",
+                  "description": "After immediate mitigation, optimize the fuzzy search queries and re-enable with a gradual rollout (5% → 25% → 50% → 100%) to safely validate under production load.",
+                  "confidence": 0.8,
+                  "risk_level": "medium",
+                  "estimated_recovery_time": "2-4 hours",
+                  "steps": [
+                    "Profile the fuzzy search Elasticsearch queries to identify the expensive patterns",
+                    "Add query timeout limits (5s max) and pagination to fuzzy search results",
+                    "Re-enable flag at 5% rollout and monitor ES query latency for 30 minutes",
+                    "Gradually increase to 25%, 50%, then 100% with 15-minute observation windows",
+                    "Set up alerting on ES query p99 latency specific to the fuzzy search path"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Recommend disabling the feature flag immediately — fastest recovery with zero code change risk. Then optimize the queries and re-enable with a gradual rollout to validate under production load."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "data_integrity_repair",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Root cause analysis for P1 billing-service data corruption:\n\nProbable cause: Race condition in billing batch processor causing duplicate charge records when multiple workers process the same billing batch concurrently. Introduced in v4.1.0 which removed the distributed lock on batch processing. Confidence: 0.85.\n\nEvidence: Duplicate charges correlate with periods of high batch concurrency. v4.0.9 had distributed locking and no duplicates. 3,200 customers with duplicate charges in the last hour.\n\nContributing factors: Distributed lock removed for performance without adding idempotency checks, no data consistency validation in billing pipeline, no reconciliation job to detect duplicates."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "rollback_and_halt",
+                  "title": "Rollback to v4.0.9 and halt billing batch processing",
+                  "description": "Rollback to restore the distributed lock and halt batch processing to prevent further duplicate charges. Data repair must happen before resuming.",
+                  "confidence": 0.9,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "10-15 minutes for rollback, 2-4 hours for data repair",
+                  "steps": [
+                    "Immediately halt all billing batch processing workers",
+                    "Rollback billing-service to v4.0.9 to restore distributed locking",
+                    "Run data audit query to identify all duplicate charge records created since v4.1.0 deploy",
+                    "Verify rollback is complete and no new duplicates are being created",
+                    "Resume billing batch processing on v4.0.9 with monitoring"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "data_repair",
+                  "title": "Automated duplicate charge reversal and customer refund",
+                  "description": "Run an automated script to identify and reverse all duplicate charges, then issue refunds to affected customers. Must be validated before execution.",
+                  "confidence": 0.8,
+                  "risk_level": "medium",
+                  "estimated_recovery_time": "2-4 hours",
+                  "steps": [
+                    "Generate report of all 3,200 affected customer accounts with duplicate charges",
+                    "Run duplicate detection script in dry-run mode to verify it correctly identifies duplicates",
+                    "Review dry-run results with billing team lead for approval",
+                    "Execute charge reversal for all verified duplicates",
+                    "Issue automated refund notifications to all affected customers",
+                    "Run reconciliation to verify billing_ledger consistency after repair"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "hotfix_idempotency",
+                  "title": "Hotfix with idempotency key on billing batch processor",
+                  "description": "Add idempotency key to billing batch processor to prevent duplicate processing without the performance cost of distributed locks. Long-term fix.",
+                  "confidence": 0.85,
+                  "risk_level": "medium",
+                  "estimated_recovery_time": "1-2 hours for hotfix, deploy after data repair",
+                  "steps": [
+                    "Add idempotency key (batch_id + customer_id + charge_date) to billing processor",
+                    "Add unique constraint on idempotency key in billing_ledger table",
+                    "Run full billing test suite including concurrency tests",
+                    "Deploy as v4.1.1 with canary rollout to 1 worker first",
+                    "Monitor for duplicate detection triggers during canary period before full rollout"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Recommend rollback to v4.0.9 first to stop new duplicates, then run the automated data repair to fix affected accounts. The idempotency hotfix should be prepared and deployed after data repair is complete — it's the proper long-term fix."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "memory_leak_remediation",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Root cause analysis for P2 user-profile-service memory leak:\n\nProbable cause: Memory leak in UserCacheManager.loadUserProfiles() from v3.5.2. New caching logic accumulates user profiles in HashMap without eviction, causing heap growth until OOMKill. 4-hour delay between deploy and symptoms. Confidence: 0.9.\n\nEvidence: Heap dump shows growing HashMap in UserCacheManager. v3.5.1 had no memory issues. OOMKill frequency (~45 min) consistent with gradual accumulation.\n\nContributing factors: No cache size limit or eviction policy, memory not in deployment health checks, no load testing for gradual memory leaks."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "rollback",
+                  "title": "Rollback to v3.5.1",
+                  "description": "Revert to the last version without the memory leak. Safest option but loses the caching improvements in v3.5.2.",
+                  "confidence": 0.95,
+                  "risk_level": "low",
+                  "estimated_recovery_time": "5-10 minutes",
+                  "steps": [
+                    "Rollback user-profile-service to v3.5.1 via deployment pipeline",
+                    "Monitor memory utilization — should stabilize immediately after rollback",
+                    "Verify OOMKill events stop on all pods",
+                    "Confirm profile loading success rate returns to baseline"
+                  ]
+                }
+              },
+              {
+                "name": "propose_remediation",
+                "args": {
+                  "id": "hotfix_cache_eviction",
+                  "title": "Hotfix cache with LRU eviction and size limit",
+                  "description": "Add LRU eviction and a max cache size limit to UserCacheManager. Preserves the caching feature while fixing the leak.",
+                  "confidence": 0.85,
+                  "risk_level": "medium",
+                  "estimated_recovery_time": "30-45 minutes",
+                  "steps": [
+                    "Replace unbounded HashMap with LRU cache (max 10,000 entries) in UserCacheManager",
+                    "Add cache size metric to monitoring for ongoing visibility",
+                    "Run memory profiling test with simulated traffic to verify no leak",
+                    "Deploy as v3.5.3 with canary to 1 pod first",
+                    "Monitor canary pod memory for 30 minutes before full rollout"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Recommend rollback to v3.5.1 first to immediately stop the OOMKills. Then prepare the cache eviction hotfix and deploy with proper memory monitoring before full rollout."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
