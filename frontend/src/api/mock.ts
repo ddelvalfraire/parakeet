@@ -19,7 +19,7 @@ const delay = (ms = 300) => new Promise((r) => setTimeout(r, ms))
 export const mockClient: ApiClient = {
   async listIncidents(): Promise<ListIncidentsResponse> {
     await delay()
-    return { incidents: INCIDENT_SUMMARIES }
+    return { incidents: INCIDENT_SUMMARIES, total: INCIDENT_SUMMARIES.length }
   },
 
   async getIncident(id: string): Promise<GetIncidentResponse> {

@@ -163,15 +163,11 @@ def _mock_investigation(alert: dict[str, Any], triage: dict[str, Any]) -> dict[s
         {"service": "api-gateway", "status": "degraded", "impact": "downstream"},
     ]
 
-    impact_summary = {
-        "estimated_users_affected": "~1,500-3,000 active sessions",
-        "revenue_impact_per_minute": "$800" if triage.get("severity") in ("P1", "P2") else None,
-    }
-
     return {
         "log_findings": log_findings,
         "affected_services": affected_services,
-        "impact_summary": impact_summary,
+        "estimated_users_affected": "~1,500-3,000 active sessions",
+        "revenue_impact_per_minute": "$800" if triage.get("severity") in ("P1", "P2") else None,
     }
 
 

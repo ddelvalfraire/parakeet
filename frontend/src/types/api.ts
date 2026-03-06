@@ -6,6 +6,7 @@ import type { Alert } from './alert'
 // GET /incidents
 export interface ListIncidentsResponse {
   incidents: IncidentSummary[]
+  total: number
 }
 
 // GET /incidents/:id

@@ -17,6 +17,7 @@ import {
 import { formatDateTime } from '@/lib/incident'
 import TimelineFeed from '@/components/incident/TimelineFeed'
 import IncidentPanel from '@/components/incident/IncidentPanel'
+import { useIncidentWebSocket } from '@/hooks/useIncidentWebSocket'
 import type { Incident, HumanDecision, TimelineEvent } from '@/types'
 
 export default function IncidentDetail() {
@@ -26,6 +27,14 @@ export default function IncidentDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generatingRetro, setGeneratingRetro] = useState(false)
+
+  const fetchIncident = useCallback(() => {
+    if (!id) return
+    api
+      .getIncident(id)
+      .then((res) => setIncident(res.incident))
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+  }, [id])
 
   useEffect(() => {
     if (!id) return
@@ -37,6 +46,8 @@ export default function IncidentDetail() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [id])
+
+  useIncidentWebSocket(id, fetchIncident)
 
   const isApproved = useMemo(
     () => incident?.timeline.some((e) => e.type === 'human_action') ?? false,
