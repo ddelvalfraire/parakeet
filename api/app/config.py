@@ -12,7 +12,10 @@ class Settings(BaseSettings):
     # LLM model used by ADK agents (swap to a Nova 2 model ID for prod)
     agent_model: str = "gemini-2.5-flash"
 
-    model_config = {"env_prefix": "PARAKEET_"}
+    # Use mock agents (deterministic, no LLM calls) for frontend development
+    mock_agents: bool = False
+
+    model_config = {"env_prefix": "PARAKEET_", "env_file": _API_DIR / ".env", "extra": "ignore"}
 
 
 settings = Settings()

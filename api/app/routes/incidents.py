@@ -15,8 +15,13 @@ from app.schemas.api import (
     SubmitActionRequest,
     SubmitActionResponse,
 )
+from app.config import settings
 from app.services.incident_service import IncidentService
-from app.services.pipeline import run_retro, run_triage_to_remediation
+
+if settings.mock_agents:
+    from app.services.mock_pipeline import run_retro, run_triage_to_remediation
+else:
+    from app.services.pipeline import run_retro, run_triage_to_remediation
 
 logger = logging.getLogger(__name__)
 
