@@ -18,7 +18,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.investigation.agent import root_agent as investigation_agent
-from app.agents.remediation.agent import root_agent as remediation_agent
+from app.agents.remediation.agent import (
+    create_demo_remediation_agent,
+    root_agent as remediation_agent,
+)
 from app.agents.retro.agent import root_agent as retro_agent
 from app.agents.root_cause.agent import root_agent as root_cause_agent
 from app.agents.triage.agent import root_agent as triage_agent
@@ -26,7 +29,9 @@ from app.models.incident import IncidentRow
 from app.models.timeline_event import TimelineEventRow
 from app.schemas.domain import IncidentStatus, TimelineEventType
 from app.schemas.ws import WSEvent, WSEventType
+from app.services.github_service import GitHubService
 from app.services.ws_manager import ConnectionManager
+from fixtures.demo_scenarios import SCENARIOS
 
 logger = logging.getLogger(__name__)
 
@@ -137,10 +142,12 @@ async def run_triage_to_remediation(
     db: AsyncSession,
     ws: ConnectionManager,
     incident_id: str,
+    github: GitHubService | None = None,
 ) -> None:
     """Run the full agent pipeline from triage through remediation.
 
     Called as a background task after incident creation.
+    Pass *github* for demo incidents that need live GitHub interaction.
     """
     result = await db.execute(
         select(IncidentRow).where(IncidentRow.id == incident_id)
@@ -283,11 +290,27 @@ async def run_triage_to_remediation(
 
     # --- 4. Remediation ---
     try:
-        rem_msg = "\n\n".join(context_parts)
-        rem_calls = await _run_agent(remediation_agent, rem_msg, session_id)
-        options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
+        scenario = SCENARIOS.get(incident.demo_scenario_id or "")
+        if scenario and github:
+            # Demo path: agent reads repo, opens PR
+            demo_agent = create_demo_remediation_agent(github, scenario, incident_id)
+            rem_msg = "\n\n".join(context_parts) + "\n\nService logs:\n" + "\n".join(scenario.logs)
+            rem_calls = await _run_agent(demo_agent, rem_msg, session_id)
 
-        rem_data = {"options": options}
+            pr_data = next(
+                (c["args"] for c in rem_calls if c["name"] == "open_fix_pr"), None
+            )
+            options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
+            rem_data: dict[str, Any] = {"options": options}
+            if pr_data:
+                rem_data["pr"] = pr_data
+        else:
+            # Standard path: generic remediation options
+            rem_msg = "\n\n".join(context_parts)
+            rem_calls = await _run_agent(remediation_agent, rem_msg, session_id)
+            options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
+            rem_data = {"options": options}
+
         await _save_event(
             db, incident_id, IncidentStatus.awaiting_approval.value,
             "Remediation options proposed", rem_data,
