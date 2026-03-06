@@ -318,47 +318,63 @@ _DEMO_DIFFS: dict[str, str] = {
     "currency-bug": (
         "--- a/src/currencyservice/server.js\n"
         "+++ b/src/currencyservice/server.js\n"
-        "@@ -138,6 +138,11 @@ function convert (call, callback) {\n"
-        "   try {\n"
-        "     const request = call.request;\n"
-        "     const from = request.from;\n"
-        "+    if (!data[from.currency_code]) {\n"
-        "+      const err = new Error(`Unsupported currency: ${from.currency_code}`);\n"
-        "+      logger.error(`conversion request failed: ${err}`);\n"
-        "+      callback(err);\n"
-        "+      return;\n"
-        "+    }\n"
-        "     const euros = _carry({\n"
-        "       units: from.units / data[from.currency_code],\n"
-        "       nanos: from.nanos / data[from.currency_code]\n"
+        "@@ -136,6 +136,12 @@ function convert (call, callback) {\n"
+        "       const request = call.request;\n"
+        " \n"
+        "       // Convert: from_currency --> EUR\n"
+        "       const from = request.from;\n"
+        "+      if (!data[from.currency_code]) {\n"
+        "+        logger.error(`conversion request failed: "
+        "unsupported currency ${from.currency_code}`);\n"
+        "+        callback({code: grpc.status.INVALID_ARGUMENT,\n"
+        "+          message: `unsupported currency: "
+        "${from.currency_code}`});\n"
+        "+        return;\n"
+        "+      }\n"
+        "       const euros = _carry({\n"
+        "         units: from.units / data[from.currency_code],\n"
+        "         nanos: from.nanos / data[from.currency_code]\n"
     ),
     "recommendation-bug": (
         "--- a/src/recommendationservice/recommendation_server.py\n"
         "+++ b/src/recommendationservice/recommendation_server.py\n"
-        "@@ -76,6 +76,10 @@ class RecommendationService(demo_pb2_grpc."
+        "@@ -76,7 +76,7 @@ class RecommendationService(demo_pb2_grpc."
         "RecommendationServiceServicer):\n"
-        "         filtered_products = list(set(product_ids) - set(request.product_ids))\n"
+        "         filtered_products = list(set(product_ids)"
+        " - set(request.product_ids))\n"
         "         num_products = len(filtered_products)\n"
-        "+        if num_products == 0:\n"
-        "+            logger.info('[Recv ListRecommendations] no products to recommend')\n"
-        "+            response = demo_pb2.ListRecommendationsResponse()\n"
-        "+            return response\n"
-        "         num_return = min(max_responses, num_products)\n"
-        "         indices = random.sample(range(num_products), num_return)\n"
+        "-        num_return = max_responses\n"
+        "+        num_return = min(max_responses, num_products)\n"
+        "         # sample list of indicies to return\n"
+        "         indices = random.sample(range(num_products),"
+        " num_return)\n"
     ),
 }
 
 
+def _first_notable_log(scenario: DemoScenario) -> str:
+    """Return the first ERROR or WARN log line from the scenario."""
+    return next(
+        (
+            line
+            for line in scenario.logs
+            if line.startswith(("ERROR", "WARN"))
+        ),
+        f"Error in {scenario.service}",
+    )
+
+
 def _mock_demo_investigation(scenario: DemoScenario) -> dict[str, Any]:
+    notable = _first_notable_log(scenario)
     return {
         "log_findings": {
-            "error_pattern": scenario.logs[1] if len(scenario.logs) > 1 else "Error in service",
+            "error_pattern": notable,
             "first_occurrence": _now(),
             "frequency": "~80 errors/min",
             "affected_versions": [f"{scenario.service}@latest"],
             "last_healthy_version": f"{scenario.service}@previous",
             "correlated_event": None,
-            "sample_stack_trace": scenario.logs[-2] if len(scenario.logs) > 1 else None,
+            "sample_stack_trace": notable,
         },
         "affected_services": [
             {"service": scenario.service, "status": "degraded", "impact": "primary"},
@@ -370,11 +386,12 @@ def _mock_demo_investigation(scenario: DemoScenario) -> dict[str, Any]:
 
 
 def _mock_demo_root_cause(scenario: DemoScenario) -> dict[str, Any]:
+    notable = _first_notable_log(scenario)
     return {
         "probable_cause": scenario.description,
         "confidence_score": 0.92,
         "evidence": [
-            f"Log pattern: {scenario.logs[1]}" if len(scenario.logs) > 1 else "Error logs detected",
+            f"Log pattern: {notable}",
             f"Bug located in {scenario.file_path}",
             f"Service: {scenario.service} ({scenario.language})",
         ],
