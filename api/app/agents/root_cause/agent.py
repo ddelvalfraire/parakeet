@@ -7,6 +7,7 @@ Production will swap to Amazon Nova 2.
 from google.adk.agents import Agent
 
 from app.agents.policies import severity_policy_as_prompt
+from app.agents.tools.similar_incidents import get_similar_past_incidents
 from app.config import settings
 
 
@@ -83,6 +84,11 @@ For cloud/infrastructure root causes (AZ outage, hardware failure, network parti
 - Contributing factors should focus on why the application wasn't resilient to it
   (no multi-AZ, no circuit breaker, no graceful degradation).
 
+## Similar past incidents
+Call `get_similar_past_incidents` to check if this service has experienced similar failures.
+If a past incident has a matching root cause pattern, reference it in your evidence and
+adjust your confidence score upward — recurring patterns are strong evidence.
+
 ## Rules
 - Always call the `report_root_cause` tool. Never respond with only text.
 - The probable_cause should be specific and actionable, not vague
@@ -98,5 +104,5 @@ root_agent = Agent(
     model=settings.agent_model,
     description="Determines the probable root cause of an incident from investigation findings.",
     instruction=ROOT_CAUSE_INSTRUCTION,
-    tools=[report_root_cause],
+    tools=[report_root_cause, get_similar_past_incidents],
 )
