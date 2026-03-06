@@ -1,0 +1,349 @@
+{
+  "eval_set_id": "root_cause_eval_001",
+  "name": "Root Cause Agent Evaluation",
+  "description": "Comprehensive test cases for root cause determination covering deploys, config changes, infrastructure, security, and ambiguous scenarios.",
+  "eval_cases": [
+    {
+      "eval_id": "deploy_caused_npe",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Investigation findings for P1 payment-service outage:\n\nLog findings: NullPointerException in PaymentProcessor.charge() at ~200/min. First occurrence: 14:02 UTC. Affected versions: v2.14.0. Last healthy version: v2.13.0. Correlated event: Deploy v2.14.0 at 14:02 UTC.\n\nAffected services: payment-service (down, primary), checkout-service (degraded, downstream), order-service (degraded, downstream).\n\nImpact: ~15,000 users affected, ~$2,400/min revenue loss."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_root_cause",
+                "args": {
+                  "probable_cause": "Null pointer exception in PaymentProcessor.charge() introduced in v2.14.0, likely due to missing null-check on a newly added or modified field in the payment processing path.",
+                  "confidence_score": 0.95,
+                  "evidence": [
+                    "Error first appeared at exactly 14:02, matching deploy time of v2.14.0",
+                    "Last healthy version v2.13.0 had no occurrences of this error",
+                    "100% error rate immediately after deploy — not a gradual degradation"
+                  ],
+                  "contributing_factors": [
+                    "No canary or staged rollout — full deployment to all instances simultaneously",
+                    "Missing null-safety validation in payment processing path",
+                    "No automated rollback trigger on error rate spike"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Root cause identified with 95% confidence: v2.14.0 introduced a null pointer exception in PaymentProcessor.charge(). The error onset perfectly correlates with the deploy time, and the previous version was healthy."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "traffic_spike_pool_exhaustion",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Investigation findings for P2 api-gateway latency:\n\nLog findings: ConnectionPoolExhaustedException at ~80/min. First occurrence: 09:45 UTC. Affected version: v4.2.1 (same version was healthy before). Correlated event: Traffic spike from marketing campaign at 09:30 UTC.\n\nAffected services: api-gateway (degraded, primary).\n\nImpact: ~8,000 users experiencing timeouts, ~$800/min revenue impact."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_root_cause",
+                "args": {
+                  "probable_cause": "RDS connection pool sized too small for traffic volume. Marketing campaign at 09:30 drove traffic beyond the connection pool's capacity, causing pool exhaustion 15 minutes later as connections backed up.",
+                  "confidence_score": 0.85,
+                  "evidence": [
+                    "Traffic spike from marketing campaign began at 09:30, connection errors started at 09:45 — 15 min lag consistent with pool saturation",
+                    "Same code version was healthy before the traffic spike, ruling out a code change"
+                  ],
+                  "contributing_factors": [
+                    "Connection pool max size not tuned for peak traffic",
+                    "No auto-scaling policy triggered by connection pool utilization",
+                    "Marketing campaign not coordinated with engineering team"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Root cause identified with 85% confidence: RDS connection pool undersized for the traffic volume driven by a marketing campaign. The 15-minute lag between traffic spike and errors is consistent with gradual pool exhaustion."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "organic_growth_cpu",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Investigation findings for P3 recommendation-engine CPU:\n\nLog findings: Slow query warnings (recommendation scoring >500ms) at ~20/min. First occurrence: 11:20 UTC. Affected version: v1.8.3. Last healthy version: v1.8.3 (same version). No correlated event.\n\nAffected services: recommendation-engine (degraded, primary).\n\nImpact: ~2,000 users seeing slower recommendations, no revenue impact."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_root_cause",
+                "args": {
+                  "probable_cause": "Recommendation scoring algorithm's CPU usage has gradually exceeded instance capacity due to organic traffic growth, with 2 of 6 instances hitting resource limits during peak hours.",
+                  "confidence_score": 0.65,
+                  "evidence": [
+                    "No code change or deploy correlated with the onset — same version was previously healthy",
+                    "CPU increase is gradual and affecting only a subset of instances, consistent with organic growth"
+                  ],
+                  "contributing_factors": [
+                    "No horizontal auto-scaling configured for recommendation-engine",
+                    "Recommendation scoring algorithm not optimized for current dataset size",
+                    "No capacity planning alerts before hitting the 80% threshold"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Root cause identified with 65% confidence: organic traffic growth has pushed recommendation-engine CPU beyond capacity on a subset of instances. No deploy or event triggered this — it's a capacity planning gap."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "config_change_feature_flag",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Investigation findings for P2 search-service latency:\n\nLog findings: ElasticsearchTimeoutException: query execution exceeded 10000ms at ~60/min. First occurrence: 10:15 UTC. Affected version: v5.2.0 (same version running for 2 weeks). Correlated event: Feature flag 'enable_fuzzy_search_v2' toggled ON at 10:12 UTC via LaunchDarkly.\n\nAffected services: search-service (degraded, primary), product-catalog-service (degraded, downstream).\n\nImpact: ~12,000 users experiencing search timeouts, ~$400/min revenue impact."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_root_cause",
+                "args": {
+                  "probable_cause": "Feature flag 'enable_fuzzy_search_v2' enabled at 10:12 UTC activated a new fuzzy search query path that generates expensive Elasticsearch queries (likely wildcard or regex patterns), causing query timeouts under production load.",
+                  "confidence_score": 0.9,
+                  "evidence": [
+                    "Timeouts began at 10:15 UTC, 3 minutes after feature flag was toggled — consistent with query queue buildup",
+                    "Same code version (v5.2.0) was healthy for 2 weeks before the flag change, ruling out a code deploy",
+                    "Error pattern is specifically Elasticsearch query timeout, matching the feature flag's scope (search queries)"
+                  ],
+                  "contributing_factors": [
+                    "Feature flag enabled in production without load testing the new query pattern",
+                    "No gradual rollout percentage on the feature flag — toggled to 100% immediately",
+                    "No query performance guardrails or timeout circuit breaker on Elasticsearch queries"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Root cause identified with 90% confidence: feature flag 'enable_fuzzy_search_v2' activated an expensive Elasticsearch query path. The timing perfectly correlates with the flag toggle, and the same code was healthy for 2 weeks prior."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "infrastructure_az_failure",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Investigation findings for P1 multi-service outage:\n\nLog findings: HealthCheckFailedException: instances in us-east-1a failing TCP health checks at continuous rate. First occurrence: 11:42 UTC. Affected versions: multiple services, all versions. No code deploy correlated. Correlated event: AWS us-east-1a connectivity degradation reported on AWS status page at 11:40 UTC.\n\nAffected services: payment-service (degraded, primary), order-service (degraded, primary), user-profile-service (degraded, primary), api-gateway (degraded, primary).\n\nImpact: ~30,000 users affected (~33% of traffic), ~$3,500/min revenue loss."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_root_cause",
+                "args": {
+                  "probable_cause": "AWS us-east-1a availability zone network connectivity failure at 11:40 UTC caused all instances in that AZ to fail health checks. Approximately one-third of the platform's capacity was in us-east-1a, causing proportional degradation across all services.",
+                  "confidence_score": 0.95,
+                  "evidence": [
+                    "AWS status page confirmed us-east-1a connectivity degradation at 11:40 UTC, 2 minutes before first health check failures",
+                    "All affected services are in us-east-1a — no services in other AZs are impacted",
+                    "Multiple services affected simultaneously with no code changes, ruling out application-level cause"
+                  ],
+                  "contributing_factors": [
+                    "No multi-AZ failover automation — load balancer draining was slow to remove unhealthy instances",
+                    "Approximately 33% of capacity concentrated in a single AZ without redundancy margin",
+                    "No cross-AZ health monitoring to trigger early AZ evacuation"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Root cause identified with 95% confidence: AWS us-east-1a availability zone network failure. Infrastructure issue confirmed by AWS status page. All affected services were in the impacted AZ. Contributing factors include insufficient multi-AZ failover automation."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "security_breach_compromised_token",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Investigation findings for P1 auth-service security breach:\n\nLog findings: Unauthorized admin API access from IP 203.0.113.42 — bulk GET requests to /api/admin/users/export and /api/admin/users/{id}/pii. 340 requests over 22 minutes. First occurrence: 03:17 UTC. Affected version: v6.1.0 (same version, no deploy). Correlated event: Admin API token last rotated 90 days ago.\n\nAffected services: auth-service (degraded, primary), user-data-service (degraded, downstream).\n\nImpact: ~50,000 users whose PII may have been exposed, no direct revenue impact."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_root_cause",
+                "args": {
+                  "probable_cause": "Compromised admin API token used from unauthorized IP 203.0.113.42 to bulk-export customer PII. The token had not been rotated in 90 days and had overly broad permissions (read access to all user PII endpoints).",
+                  "confidence_score": 0.85,
+                  "evidence": [
+                    "Access originated from IP 203.0.113.42 which is not in the admin allow-list",
+                    "Admin API token was last rotated 90 days ago — exceeds the 30-day rotation policy",
+                    "Access pattern (bulk sequential export) is inconsistent with normal admin usage patterns"
+                  ],
+                  "contributing_factors": [
+                    "Admin API token rotation policy not enforced — 90 days without rotation",
+                    "No IP allow-list enforcement on admin API endpoints",
+                    "Admin token had broad permissions — no scoped access for specific data types",
+                    "No rate limiting on admin API bulk export endpoints"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Root cause identified with 85% confidence: compromised admin API token used for unauthorized PII export. Token was 90 days old (exceeding rotation policy), used from an unauthorized IP, with overly broad permissions and no rate limiting."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "low_confidence_ambiguous",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Investigation findings for P2 checkout-service errors:\n\nLog findings: Intermittent 503 ServiceUnavailableException at ~30/min. First occurrence: 08:00 UTC. Affected version: v7.3.0 (deployed 3 days ago, was healthy until now). No clear correlated event — no deploy, no config change, no traffic spike.\n\nAffected services: checkout-service (degraded, primary).\n\nImpact: ~4,000 users seeing intermittent checkout failures, ~$500/min revenue impact."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_root_cause",
+                "args": {
+                  "probable_cause": "Intermittent resource contention or dependency failure causing 503 errors on checkout-service. Most likely a downstream dependency (database or external payment provider) experiencing intermittent issues, as the same code version was healthy for 3 days.",
+                  "confidence_score": 0.4,
+                  "evidence": [
+                    "Code version v7.3.0 was healthy for 3 days, making a latent code bug possible but less likely",
+                    "Intermittent nature (not constant failure) suggests a resource contention or external dependency issue rather than a code defect"
+                  ],
+                  "contributing_factors": [
+                    "Insufficient logging — 503 errors lack detailed root cause information in stack traces",
+                    "No distributed tracing to correlate checkout failures with downstream dependency health",
+                    "No circuit breaker on external payment provider calls to distinguish provider issues from internal failures"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Root cause identified with 40% confidence: likely intermittent downstream dependency failure, but evidence is insufficient for a definitive conclusion. Further investigation needed — recommend adding distributed tracing and checking payment provider status."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "eval_id": "memory_leak_from_deploy",
+      "conversation": [
+        {
+          "invocation_id": "turn_1",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Investigation findings for P2 user-profile-service memory leak:\n\nLog findings: OOMKilled — container exceeded 2Gi limit. Heap dump shows growing HashMap in UserCacheManager.loadUserProfiles(). OOMKill every ~45 min on 2 of 5 pods. First occurrence: 06:15 UTC. Affected version: v3.5.2. Last healthy: v3.5.1. Correlated event: Deploy v3.5.2 at 02:00 UTC introduced new caching logic.\n\nAffected services: user-profile-service (degraded, primary), api-gateway (degraded, downstream).\n\nImpact: ~10,000 users with intermittent profile loading failures, ~$200/min revenue impact."
+              }
+            ]
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {
+                "name": "report_root_cause",
+                "args": {
+                  "probable_cause": "Memory leak in UserCacheManager.loadUserProfiles() introduced in v3.5.2. New caching logic accumulates user profile objects in a HashMap without eviction, causing heap growth until OOMKill. The 4-hour delay between deploy and symptoms indicates gradual memory accumulation.",
+                  "confidence_score": 0.9,
+                  "evidence": [
+                    "Heap dump directly shows growing HashMap in UserCacheManager.loadUserProfiles() — the exact class modified in v3.5.2",
+                    "v3.5.1 had no memory issues — leak correlated with the new caching logic in v3.5.2",
+                    "OOMKill frequency (~45 min) is consistent with gradual memory leak accumulation, not a sudden spike"
+                  ],
+                  "contributing_factors": [
+                    "No cache size limit or eviction policy configured in the new caching implementation",
+                    "Memory usage not included in deployment health check criteria — leak went undetected for 4 hours",
+                    "No load testing with sustained traffic to catch gradual memory leaks before production deploy"
+                  ]
+                }
+              }
+            ]
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Root cause identified with 90% confidence: memory leak in UserCacheManager.loadUserProfiles() from v3.5.2. Heap dump confirms growing HashMap without eviction. The 4-hour delay between deploy and symptoms is consistent with gradual accumulation."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

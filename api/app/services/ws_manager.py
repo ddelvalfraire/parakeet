@@ -19,5 +19,11 @@ class ConnectionManager:
             conns.remove(websocket)
 
     async def broadcast(self, incident_id: str, event: WSEvent) -> None:
+        dead: list[WebSocket] = []
         for ws in self._connections.get(incident_id, []):
-            await ws.send_text(event.model_dump_json())
+            try:
+                await ws.send_text(event.model_dump_json())
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(incident_id, ws)

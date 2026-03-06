@@ -2,8 +2,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.domain import RiskLevel, Severity
-
 
 class LogFindings(BaseModel):
     error_pattern: str
@@ -26,7 +24,7 @@ class RemediationOption(BaseModel):
     title: str
     description: str
     confidence: float = Field(ge=0.0, le=1.0)
-    risk_level: RiskLevel
+    risk_level: str
     estimated_recovery_time: str
     steps: list[str]
 
@@ -43,7 +41,7 @@ class PostMortemTimelineEntry(BaseModel):
 
 
 class TriageResult(BaseModel):
-    severity: Severity
+    severity: str
     category: str
     tags: list[str]
     is_duplicate: bool
@@ -77,7 +75,7 @@ class HumanDecision(BaseModel):
 class PostMortem(BaseModel):
     title: str
     duration: str
-    severity: Severity
+    severity: str
     impact: PostMortemImpact
     timeline: list[PostMortemTimelineEntry]
     root_cause: str

@@ -1,0 +1,48 @@
+# Severity classification policy — org-specific definitions.
+# This file is the single source of truth for what P1–P4 mean.
+# It is loaded into every agent's instruction prompt at startup.
+# Edit this to match your organisation's incident severity standards.
+
+P1:
+  label: Critical
+  description: >
+    Complete service outage in production, confirmed data loss or corruption,
+    active security breach, or payment/billing pipeline failure.
+  examples:
+    - "All API endpoints returning 500 for >2 minutes"
+    - "Database primary node unreachable"
+    - "Unauthorised access to customer PII detected"
+  response_time: "Immediate — page on-call, open bridge"
+
+P2:
+  label: High
+  description: >
+    Major degradation affecting a significant portion of users in production.
+    Core functionality is impaired but not completely down.
+  examples:
+    - "Latency p99 >5x baseline for a core service"
+    - "Error rate >20% on login or checkout"
+    - "One AZ down but service partially available"
+  response_time: "Within 15 minutes — notify on-call"
+
+P3:
+  label: Moderate
+  description: >
+    Partial degradation, non-critical service issues, or production problems
+    with limited user impact. Workarounds may exist.
+  examples:
+    - "Recommendation engine slow but returning results"
+    - "CPU at 85% on a subset of instances"
+    - "Non-critical background job failing intermittently"
+  response_time: "Within 1 hour — ticket and triage"
+
+P4:
+  label: Low
+  description: >
+    Minor issues, cosmetic problems, non-production environment failures,
+    or informational alerts that don't affect users.
+  examples:
+    - "Staging environment config drift"
+    - "Deprecation warning in logs"
+    - "Dev cluster autoscaler flapping"
+  response_time: "Next business day — backlog"
