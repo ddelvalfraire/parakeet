@@ -4,12 +4,21 @@ Uses Google ADK with Gemini for development.
 Production will swap to Amazon Nova 2.
 """
 
-from typing import Literal
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Literal
 
 from google.adk.agents import Agent
 
 from app.agents.policies import severity_policy_as_prompt
 from app.config import settings
+
+if TYPE_CHECKING:
+    from fixtures.demo_scenarios import DemoScenario
+    from app.services.github_service import GitHubService
+
+logger = logging.getLogger(__name__)
 
 
 def propose_remediation(
@@ -136,3 +145,238 @@ root_agent = Agent(
     instruction=REMEDIATION_INSTRUCTION,
     tools=[propose_remediation],
 )
+
+
+# ---------------------------------------------------------------------------
+# Demo mode — agent factory with GitHub-backed tools
+# ---------------------------------------------------------------------------
+
+DEMO_INSTRUCTION_ADDON = """
+
+## Live Code Fix Mode
+
+You have access to a real GitHub repository containing the source code for
+Google's Online Boutique microservices application. Based on the root cause
+analysis and log evidence provided, you must **find** the buggy file and open a
+Pull Request with the fix.
+
+### Workflow
+
+1. **Search first** — call `search_repo_code` with key terms from the log
+   evidence or root cause (function names, error strings, variable names).
+   This returns matching file paths and code fragments so you can pinpoint
+   the relevant file and function without reading every file.
+2. **Read the targeted range** — once you know the file and approximate
+   location, call `read_repo_file` with `start_line` / `end_line` to inspect
+   just the function or block that contains the bug. This saves tokens and
+   focuses your analysis.
+3. **Explore if needed** — if search returns no results or you need to browse
+   the directory structure, fall back to `list_repo_directory` starting at
+   `src/` to discover service directories, then drill into the relevant one.
+4. **Read the full file** — before opening the PR you need the complete file
+   content. Call `read_repo_file` with no line range (start_line=0, end_line=0)
+   on the file you want to fix. This fetches and caches the full text.
+5. Analyze the code and identify the exact bug that matches the log evidence.
+6. Determine the **minimal** fix — change as few lines as possible.
+7. Call `open_fix_pr` with the complete corrected file content, a clear title,
+   and a description explaining the bug and fix.
+8. Call `propose_remediation` **2-3 times** as you normally would:
+   - **First call** (recommended): the PR code fix. Confidence 0.90-0.95,
+     risk_level "low", steps like ["Review the PR diff", "Approve and merge",
+     "Verify fix in production"]. Include the PR URL in the description.
+   - **Second call**: a mitigation/workaround option (e.g. feature flag,
+     traffic reroute, rollback to previous version) in case the fix can't be
+     deployed immediately. Use the standard confidence/risk/recovery guidelines.
+   - **Third call** (optional, for P1): an additional fallback option.
+
+### Tool usage tips
+- **`search_repo_code`** is cheap and fast — always try it first.
+  Good queries: function names (`CreateQuoteFromCount`), error strings
+  (`getRate`), log patterns (`random.sample`).
+- **`read_repo_file` with a range** — use when search tells you the file and
+  you want to inspect ~20-50 lines around the match. Pass `start_line` and
+  `end_line` (1-based, inclusive).
+- **`read_repo_file` without a range** — use once before `open_fix_pr` to
+  get the complete file. The cached content is reused automatically.
+- **`list_repo_directory`** — use as a fallback when search doesn't help
+  or you need to see the repo layout.
+
+### Important
+- You MUST search or explore and read files before opening a PR — never guess.
+- You MUST call both `open_fix_pr` and `propose_remediation` (at least twice).
+- Include the PR URL in the first remediation option's description.
+- The `fixed_content` passed to `open_fix_pr` must be the COMPLETE file with
+  your correction applied, not just the changed lines.
+"""
+
+
+def _run_async(coro):
+    """Run an async coroutine from a sync ADK tool function.
+
+    ADK tool functions are synchronous, but the pipeline runs inside an async
+    event loop.  ``loop.run_until_complete()`` would raise
+    ``RuntimeError: This event loop is already running``.  We work around this
+    by executing the coroutine in a *new* event loop on a background thread.
+    """
+    import asyncio
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
+
+
+def create_demo_remediation_agent(
+    github: GitHubService,
+    scenario: DemoScenario,
+    incident_id: str,
+) -> Agent:
+    """Create a remediation agent wired to a live GitHub repo for a demo scenario."""
+
+    # Stash file metadata from read_repo_file for use in open_fix_pr
+    _file_cache: dict[str, dict] = {}
+
+    def list_repo_directory(path: str = "") -> list[dict]:
+        """List files and directories at a path in the demo GitHub repository.
+
+        Use this to explore the repo structure and locate source files.
+        Start with the root or "src/" to discover service directories,
+        then drill into specific services.
+
+        Args:
+            path: Directory path in the repository (e.g. "", "src",
+                "src/shippingservice"). Empty string lists the repo root.
+
+        Returns:
+            List of dicts, each with 'name', 'type' ("file" or "dir"),
+            and 'path' (full path from repo root).
+        """
+        return _run_async(github.list_directory(path))
+
+    def search_repo_code(query: str) -> list[dict]:
+        """Search for code in the repository by keyword, function name, or error string.
+
+        Use this FIRST to locate relevant files and symbols before reading files.
+        Returns file paths and text fragments showing matches in context.
+
+        Args:
+            query: Search term — function name, error string, variable name, etc.
+                Examples: "CreateQuoteFromCount", "getRate", "random.sample".
+
+        Returns:
+            List of dicts, each with 'path' (file path), 'name' (filename),
+            and 'fragments' (list of code snippets showing the match in context).
+        """
+        return _run_async(github.search_code(query))
+
+    def read_repo_file(file_path: str, start_line: int = 0, end_line: int = 0) -> dict:
+        """Read a file (or a line range) from the demo GitHub repository.
+
+        When start_line and end_line are both 0, returns the full file.
+        Otherwise returns only the requested line range with line numbers.
+
+        Tip: Use `search_repo_code` first to find the file and approximate
+        location, then read a targeted range to inspect specific functions.
+
+        Args:
+            file_path: Path to the file in the repository
+                (e.g. "src/shippingservice/main.go").
+            start_line: First line to return (1-based, inclusive). 0 = start of file.
+            end_line: Last line to return (1-based, inclusive). 0 = end of file.
+
+        Returns:
+            Dict with 'path', 'content', and 'total_lines'.
+            When a range is requested, 'content' is prefixed with line numbers.
+        """
+        # Always fetch and cache the full file (needed for open_fix_pr later)
+        cached = _file_cache.get(file_path)
+        if not cached:
+            cached = _run_async(github.get_file_content(file_path))
+            _file_cache[file_path] = cached
+
+        full_content = cached["content"]
+        lines = full_content.splitlines()
+        total_lines = len(lines)
+
+        # Full file requested
+        if start_line <= 0 and end_line <= 0:
+            return {"path": file_path, "content": full_content, "total_lines": total_lines}
+
+        # Line range requested — clamp and return with line numbers
+        s = max(1, start_line)
+        e = min(total_lines, end_line) if end_line > 0 else total_lines
+        numbered = "\n".join(
+            f"{i}: {line}" for i, line in enumerate(lines[s - 1 : e], start=s)
+        )
+        return {
+            "path": file_path,
+            "content": numbered,
+            "lines": f"{s}-{e}",
+            "total_lines": total_lines,
+        }
+
+    def open_fix_pr(
+        file_path: str,
+        fixed_content: str,
+        title: str,
+        description: str,
+    ) -> dict:
+        """Open a GitHub Pull Request with the proposed code fix.
+
+        Args:
+            file_path: Path to the file being fixed (must have been read first).
+            fixed_content: The COMPLETE fixed file content (full file, not just the diff).
+            title: PR title (e.g. "Fix: Pass actual cart size to CreateQuoteFromCount").
+            description: PR body explaining the bug, evidence, and fix.
+
+        Returns:
+            Dict with 'pr_number', 'pr_url', 'diff', 'file_path', 'branch'.
+        """
+        cached = _file_cache.get(file_path)
+        if not cached:
+            cached = _run_async(github.get_file_content(file_path))
+
+        branch = scenario.branch_name(incident_id)
+
+        # Get HEAD, create branch, commit fix, open PR
+        head_sha = _run_async(github.get_head_sha())
+
+        # Clean up branch if it already exists
+        try:
+            _run_async(github.delete_branch(branch))
+        except Exception:
+            pass
+
+        _run_async(github.create_branch(branch, head_sha))
+        _run_async(
+            github.update_file(
+                file_path,
+                fixed_content,
+                f"fix: {title}",
+                branch,
+                cached["sha"],
+            )
+        )
+        pr = _run_async(github.create_pr(title, description, branch))
+        diff = _run_async(github.get_pr_diff(pr["number"]))
+
+        return {
+            "pr_number": pr["number"],
+            "pr_url": pr["html_url"],
+            "diff": diff,
+            "file_path": file_path,
+            "branch": branch,
+        }
+
+    return Agent(
+        name="remediation-demo",
+        model=settings.agent_model,
+        description="Finds bugs in code and opens GitHub PRs with fixes.",
+        instruction=REMEDIATION_INSTRUCTION + DEMO_INSTRUCTION_ADDON,
+        tools=[
+            search_repo_code,
+            list_repo_directory,
+            read_repo_file,
+            open_fix_pr,
+            propose_remediation,
+        ],
+    )
