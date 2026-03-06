@@ -211,7 +211,8 @@ async def run_triage_to_remediation(
         inv_data = {
             "log_findings": log_findings,
             "affected_services": affected,
-            "impact_summary": impact,
+            "estimated_users_affected": impact.get("estimated_users_affected") if impact else None,
+            "revenue_impact_per_minute": impact.get("revenue_impact_per_minute") if impact else None,
         }
         await _update_status(db, incident, IncidentStatus.root_cause)
         await _save_event(
