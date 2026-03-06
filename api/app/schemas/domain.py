@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class IncidentStatus(str, Enum):
+class IncidentStatus(StrEnum):
     triaging = "triaging"
     investigating = "investigating"
     root_cause = "root_cause"
@@ -10,20 +10,20 @@ class IncidentStatus(str, Enum):
     resolved = "resolved"
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     P1 = "P1"
     P2 = "P2"
     P3 = "P3"
     P4 = "P4"
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     low = "low"
     medium = "medium"
     high = "high"
 
 
-class TimelineEventType(str, Enum):
+class TimelineEventType(StrEnum):
     agent_output = "agent_output"
     human_action = "human_action"
     system_event = "system_event"

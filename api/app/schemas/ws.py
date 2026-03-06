@@ -1,10 +1,10 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
 
 
-class WSEventType(str, Enum):
+class WSEventType(StrEnum):
     stage_change = "stage_change"
     timeline_append = "timeline_append"
     awaiting_approval = "awaiting_approval"

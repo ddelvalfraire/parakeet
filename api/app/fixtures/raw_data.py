@@ -6,7 +6,6 @@ These represent the signals that agents ingest from external systems
 
 from pydantic import BaseModel
 
-
 # ── Application Logs ───────────────────────────────────────────────────────
 # CloudWatch Logs, Datadog, kubectl logs
 
