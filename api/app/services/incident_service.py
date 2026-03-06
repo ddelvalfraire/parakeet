@@ -79,7 +79,9 @@ class IncidentService:
             return None
         return _row_to_incident(row)
 
-    async def create_incident(self, alert: Alert) -> IncidentSummary:
+    async def create_incident(
+        self, alert: Alert, *, demo_scenario_id: str | None = None,
+    ) -> IncidentSummary:
         now = _now()
         incident_id = f"inc-{uuid4().hex[:6]}"
 
@@ -94,6 +96,7 @@ class IncidentService:
             created_at=now,
             updated_at=now,
             resolved_at=None,
+            demo_scenario_id=demo_scenario_id,
         )
         self._db.add(row)
 
@@ -148,6 +151,71 @@ class IncidentService:
         self._db.add(event)
         await self._db.commit()
 
+        return IncidentStatus.resolving
+
+    async def merge_fix(
+        self, incident_id: str, approved_by: str, notes: str | None,
+    ) -> IncidentStatus | None:
+        """Approve the code fix PR — transitions incident to resolving."""
+        result = await self._db.execute(
+            select(IncidentRow).where(IncidentRow.id == incident_id)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+
+        now = _now()
+        row.status = IncidentStatus.resolving.value
+        row.updated_at = now
+
+        event = TimelineEventRow(
+            id=f"evt-{uuid4().hex[:6]}",
+            incident_id=incident_id,
+            timestamp=now,
+            stage=IncidentStatus.resolving.value,
+            type=TimelineEventType.human_action.value,
+            title=f"Fix PR merged by {approved_by}",
+            payload={
+                "approved_option_id": "pr-fix",
+                "approved_by": approved_by,
+                "notes": notes,
+                "action": "merge_pr",
+            },
+        )
+        self._db.add(event)
+        await self._db.commit()
+        return IncidentStatus.resolving
+
+    async def resolve_manually(
+        self, incident_id: str, explanation: str, approved_by: str,
+    ) -> IncidentStatus | None:
+        """Resolve an incident manually with an explanation."""
+        result = await self._db.execute(
+            select(IncidentRow).where(IncidentRow.id == incident_id)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+
+        now = _now()
+        row.status = IncidentStatus.resolving.value
+        row.updated_at = now
+
+        event = TimelineEventRow(
+            id=f"evt-{uuid4().hex[:6]}",
+            incident_id=incident_id,
+            timestamp=now,
+            stage=IncidentStatus.resolving.value,
+            type=TimelineEventType.human_action.value,
+            title=f"Manually resolved by {approved_by}",
+            payload={
+                "approved_by": approved_by,
+                "explanation": explanation,
+                "action": "manual_resolve",
+            },
+        )
+        self._db.add(event)
+        await self._db.commit()
         return IncidentStatus.resolving
 
     async def get_retro(self, incident_id: str) -> PostMortem | None:
