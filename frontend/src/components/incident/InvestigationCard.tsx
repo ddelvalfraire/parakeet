@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { AlertTriangle, DollarSign } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { serviceStatusConfig } from '@/lib/styles'
 import type { InvestigationResult, ImpactLevel } from '@/types'
 
@@ -22,7 +22,7 @@ export default function InvestigationCard({
 }: {
   payload: InvestigationResult
 }) {
-  const { log_findings, affected_services, estimated_users_affected, revenue_impact_per_minute } = payload
+  const { log_findings, affected_services, estimated_users_affected } = payload
 
   return (
     <div className="rounded-lg border border-l-[3px] border-l-blue-500 bg-card p-4 space-y-4 dark:border-l-blue-400">
@@ -81,21 +81,13 @@ Healthy:  ${log_findings.last_healthy_version}${
         </pre>
       </div>
 
-      {/* Revenue impact callout */}
-      {revenue_impact_per_minute && (
-        <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/50">
-          <DollarSign className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-red-800 dark:text-red-200">
-              {revenue_impact_per_minute}/min revenue impact
-            </p>
-            <p className="text-xs text-red-600 dark:text-red-400">
-              {estimated_users_affected} affected
-            </p>
-          </div>
-          <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-        </div>
-      )}
+      {/* User impact callout */}
+      <div className="flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/50">
+        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+          {estimated_users_affected} affected
+        </p>
+      </div>
     </div>
   )
 }

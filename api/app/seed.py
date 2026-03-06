@@ -280,7 +280,7 @@ TIMELINES: dict[str, list[dict]] = {
                     {"service": "notification-service", "status": "healthy", "impact": "none"},
                 ],
                 "estimated_users_affected": "~4,200 active sessions",
-                "revenue_impact_per_minute": "$2,800",
+
             },
         },
         {
@@ -415,7 +415,7 @@ TIMELINES: dict[str, list[dict]] = {
                     {"service": "checkout-service", "status": "healthy", "impact": "none"},
                 ],
                 "estimated_users_affected": "~1,800 active sessions",
-                "revenue_impact_per_minute": "$420",
+
             },
         },
     ],
@@ -479,7 +479,7 @@ TIMELINES: dict[str, list[dict]] = {
                     },
                 ],
                 "estimated_users_affected": "~6,000 browsing sessions",
-                "revenue_impact_per_minute": "$180",
+
             },
         },
         {
@@ -559,9 +559,14 @@ TIMELINES: dict[str, list[dict]] = {
                 "title": "P2: Recommendations Latency Spike — Cache Invalidation Storm",
                 "duration": "11:42 - 12:20 UTC (38 minutes)",
                 "severity": "P2",
+                "summary": (
+                    "An ML model retrain job invalidated the entire recommendations"
+                    " cache simultaneously, causing p99 latency to spike to 8s for"
+                    " 38 minutes and affecting ~6,000 users. Resolved by running a"
+                    " cache warm-up job."
+                ),
                 "impact": {
                     "users_affected": "~6,000",
-                    "estimated_revenue_loss": "$6,840",
                     "services_degraded": ["product-page-service"],
                 },
                 "timeline": [
@@ -581,7 +586,25 @@ TIMELINES: dict[str, list[dict]] = {
                     "ML model retrain job invalidated the entire cache simultaneously,"
                     " causing all requests to hit cold S3 storage."
                 ),
+                "contributing_factors": [
+                    "No staggered cache invalidation — entire cache wiped at once",
+                    "No automatic cache warming after model retraining",
+                    "No circuit breaker to serve stale data during rebuilds",
+                ],
                 "remediation_taken": "Ran cache warm-up job to pre-populate all segments from S3.",
+                "lessons_learned": {
+                    "went_well": [
+                        "Alert fired within 3 minutes of latency spike",
+                        "Cache warm-up procedure existed and was executed quickly",
+                    ],
+                    "went_wrong": [
+                        "Full cache invalidation had no safeguards",
+                        "No runbook for cache storm recovery",
+                    ],
+                    "got_lucky": [
+                        "S3 source data was intact and up-to-date",
+                    ],
+                },
                 "prevention": [
                     "Implement staggered cache TTLs so segments expire gradually",
                     "Add automatic cache warming as post-retrain step",
@@ -663,7 +686,7 @@ TIMELINES: dict[str, list[dict]] = {
                     },
                 ],
                 "estimated_users_affected": "~2,100 transactions pending",
-                "revenue_impact_per_minute": "$3,400",
+
             },
         },
         {
@@ -744,9 +767,14 @@ TIMELINES: dict[str, list[dict]] = {
                 "title": "P1: Payment Webhook Outage — DB Connection Pool Exhaustion",
                 "duration": "22:12 - 22:40 UTC (28 minutes)",
                 "severity": "P1",
+                "summary": (
+                    "A v5.0.3 deployment refactored the webhook handler to hold DB"
+                    " connections during Stripe API calls, exhausting the connection"
+                    " pool and causing 78% webhook failures for 28 minutes. ~2,100"
+                    " users were affected. Resolved by rolling back to v5.0.2."
+                ),
                 "impact": {
                     "users_affected": "~2,100",
-                    "estimated_revenue_loss": "$95,200",
                     "services_degraded": ["order-service", "fulfillment-service"],
                 },
                 "timeline": [
@@ -771,10 +799,31 @@ TIMELINES: dict[str, list[dict]] = {
                     " holding connections for 8-12s. HikariCP pool"
                     " (max 10) exhausted under load."
                 ),
+                "contributing_factors": [
+                    "DB transaction scope too broad — held during external API calls",
+                    "Connection pool sized for normal load (10), no headroom",
+                    "No load testing for payment-critical paths before deploy",
+                ],
                 "remediation_taken": (
                     "Rolled back to v5.0.2."
                     " Stripe webhook retry cleared backlog."
                 ),
+                "lessons_learned": {
+                    "went_well": [
+                        "Alert fired within 3 minutes of pool exhaustion",
+                        "Rollback was clean and fast — 5 minutes to restore",
+                        "Stripe webhook retry mechanism cleared the backlog automatically",
+                    ],
+                    "went_wrong": [
+                        "Code review missed the transaction scope issue",
+                        "No load testing caught the connection leak pattern",
+                        "Pool size was never reviewed for the new access pattern",
+                    ],
+                    "got_lucky": [
+                        "Stripe's retry mechanism prevented permanent payment loss",
+                        "No double-charges occurred despite webhook failures",
+                    ],
+                },
                 "prevention": [
                     "Refactor webhook handler to separate DB writes"
                     " from external API calls",
@@ -839,7 +888,7 @@ TIMELINES: dict[str, list[dict]] = {
                     },
                 ],
                 "estimated_users_affected": "~3,200 orders",
-                "revenue_impact_per_minute": "$45",
+
             },
         },
         {
@@ -910,9 +959,14 @@ TIMELINES: dict[str, list[dict]] = {
                 "title": "P2: Shipping Flat-Rate Bug — Hardcoded Argument in GetQuote",
                 "duration": "08:00 - 10:12 UTC (2 hours 12 minutes)",
                 "severity": "P2",
+                "summary": (
+                    "A hardcoded argument in GetQuote caused all shipping quotes to"
+                    " return the $8.99 base rate regardless of cart contents for over"
+                    " 2 hours, affecting ~3,200 orders. Fixed by passing the actual"
+                    " item count."
+                ),
                 "impact": {
                     "users_affected": "~3,200",
-                    "estimated_revenue_loss": "$5,400",
                     "services_degraded": [],
                 },
                 "timeline": [
@@ -935,10 +989,29 @@ TIMELINES: dict[str, list[dict]] = {
                     " item count, making all quotes return the"
                     " $8.99 base rate."
                 ),
+                "contributing_factors": [
+                    "No unit tests for shipping cost calculation",
+                    "Code review did not catch the hardcoded argument",
+                    "Alert took 90 minutes to fire — monitoring lacked variance check",
+                ],
                 "remediation_taken": (
                     "Hotfix: changed CreateQuoteFromCount(0)"
                     " to CreateQuoteFromCount(len(in.Items))."
                 ),
+                "lessons_learned": {
+                    "went_well": [
+                        "Hotfix was straightforward — one-line change",
+                        "Root cause was identified quickly once investigated",
+                    ],
+                    "went_wrong": [
+                        "Detection took 90 minutes — alert was"
+                        " latency-based, not correctness-based",
+                        "No tests existed for the shipping cost calculation path",
+                    ],
+                    "got_lucky": [
+                        "Customers were undercharged, not overcharged — fewer complaints",
+                    ],
+                },
                 "prevention": [
                     "Add unit tests for shipping cost with varying carts",
                     "Add integration test: quote varies by item count",
@@ -1009,7 +1082,7 @@ TIMELINES: dict[str, list[dict]] = {
                     },
                 ],
                 "estimated_users_affected": "~5,500 browsing sessions",
-                "revenue_impact_per_minute": "$1,200",
+
             },
         },
         {
@@ -1093,9 +1166,14 @@ TIMELINES: dict[str, list[dict]] = {
                 "title": "P1: Currency Conversion Failures — Missing Input Validation",
                 "duration": "16:40 - 17:15 UTC (35 minutes)",
                 "severity": "P1",
+                "summary": (
+                    "A v2.1.0 deployment of currencyservice removed error handling"
+                    " for unsupported currency codes, causing TypeError crashes at"
+                    " a 28% error rate for 35 minutes. ~5,500 users were affected."
+                    " Resolved by rolling back to v2.0.5."
+                ),
                 "impact": {
                     "users_affected": "~5,500",
-                    "estimated_revenue_loss": "$42,000",
                     "services_degraded": ["checkout-service", "product-page-service"],
                 },
                 "timeline": [
@@ -1116,10 +1194,29 @@ TIMELINES: dict[str, list[dict]] = {
                     " Unsupported codes returned undefined,"
                     " crashing on .units access."
                 ),
+                "contributing_factors": [
+                    "No input validation for currency codes at API boundary",
+                    "Refactor removed existing try/catch without replacement",
+                    "No integration tests for unsupported currency codes",
+                ],
                 "remediation_taken": (
                     "Rolled back to v2.0.5 which had"
                     " try/catch error handling."
                 ),
+                "lessons_learned": {
+                    "went_well": [
+                        "Datadog alert caught the error rate spike within 5 minutes",
+                        "Root cause was identified within 17 minutes",
+                    ],
+                    "went_wrong": [
+                        "Code review approved removal of error handling",
+                        "No tests for the failure path with unsupported currencies",
+                    ],
+                    "got_lucky": [
+                        "Only a subset of currencies triggered the crash",
+                        "No financial data corruption occurred",
+                    ],
+                },
                 "prevention": [
                     "Add input validation for currency codes",
                     "Add tests for unsupported currency code handling",
@@ -1192,7 +1289,7 @@ TIMELINES: dict[str, list[dict]] = {
                     },
                 ],
                 "estimated_users_affected": "~800 browsing sessions",
-                "revenue_impact_per_minute": "$60",
+
             },
         },
         {
@@ -1261,9 +1358,14 @@ TIMELINES: dict[str, list[dict]] = {
                 "title": "P2: Recommendation Crash — Empty Product List Edge Case",
                 "duration": "11:15 - 11:52 UTC (37 minutes)",
                 "severity": "P2",
+                "summary": (
+                    "A missing guard in ListRecommendations caused crashes when"
+                    " all products were in the user's cart, triggering an 8% error"
+                    " rate for 37 minutes and affecting ~800 users. Fixed with a"
+                    " one-line guard."
+                ),
                 "impact": {
                     "users_affected": "~800",
-                    "estimated_revenue_loss": "$2,220",
                     "services_degraded": [],
                 },
                 "timeline": [
@@ -1282,10 +1384,28 @@ TIMELINES: dict[str, list[dict]] = {
                     "ListRecommendations called random.sample() on an empty range when all"
                     " products were already in the user's cart. Missing empty-list guard."
                 ),
+                "contributing_factors": [
+                    "No test coverage for edge case where all products are in cart",
+                    "Small product catalog increased probability of triggering the bug",
+                ],
                 "remediation_taken": (
                     "Added guard: return empty response"
                     " when filtered_products is empty."
                 ),
+                "lessons_learned": {
+                    "went_well": [
+                        "Fix was straightforward — single guard statement",
+                        "Root cause was quickly identified from stack trace",
+                    ],
+                    "went_wrong": [
+                        "Edge case was not considered during development",
+                        "Alert took 5 minutes despite clear crash pattern",
+                    ],
+                    "got_lucky": [
+                        "Low user count affected — feature is non-critical",
+                        "Crash was isolated, no cascade to other services",
+                    ],
+                },
                 "prevention": [
                     "Add test for full-cart edge case (all products in cart)",
                     "Add test for empty product catalog scenario",

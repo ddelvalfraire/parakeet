@@ -28,7 +28,6 @@ export interface InvestigationResult {
   log_findings: LogFindings
   affected_services: AffectedService[]
   estimated_users_affected: string
-  revenue_impact_per_minute: string | null
 }
 
 export interface RootCauseResult {
@@ -78,20 +77,7 @@ export interface HumanDecision {
 
 export interface PostMortemImpact {
   users_affected: string
-  estimated_revenue_loss: string | null
   services_degraded: string[]
-  /** Richer operational metrics for the retro dashboard */
-  metrics?: PostMortemMetrics
-}
-
-export interface PostMortemMetrics {
-  failed_requests: { total: string; peak_rate: string }
-  error_rate: { peak: string; baseline: string }
-  latency_p99: { peak: string; baseline: string }
-  revenue_loss: { total: string; rate: string }
-  time_to_detect: string
-  time_to_resolve: string
-  services_affected: Array<{ name: string; status: 'down' | 'degraded' | 'healthy' }>
 }
 
 export interface PostMortemTimelineEntry {
@@ -99,14 +85,23 @@ export interface PostMortemTimelineEntry {
   event: string
 }
 
+export interface LessonsLearned {
+  went_well: string[]
+  went_wrong: string[]
+  got_lucky: string[]
+}
+
 export interface PostMortem {
   title: string
   duration: string
   severity: Severity
+  summary: string
   impact: PostMortemImpact
   timeline: PostMortemTimelineEntry[]
   root_cause: string
+  contributing_factors: string[]
   remediation_taken: string
+  lessons_learned: LessonsLearned
   prevention: string[]
 }
 

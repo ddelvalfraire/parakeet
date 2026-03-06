@@ -11,7 +11,7 @@
           "user_content": {
             "parts": [
               {
-                "text": "Triage result: P1 incident on payment-service in production. Category: error_rate. Summary: Payment processing completely failed — all transactions returning 500 since deploy v2.14.0 at 14:02 UTC. Error rate at 100%, threshold was 5%. Source: CloudWatch."
+                "text": "Triage result: P1 incident on payment-service in production. Category: error_rate. Summary: Payment processing completely failed \u2014 all transactions returning 500 since deploy v2.14.0 at 14:02 UTC. Error rate at 100%, threshold was 5%. Source: CloudWatch."
               }
             ]
           },
@@ -23,7 +23,9 @@
                   "error_pattern": "NullPointerException in PaymentProcessor.charge()",
                   "first_occurrence": "14:02 UTC",
                   "frequency": "~200/min",
-                  "affected_versions": ["v2.14.0"],
+                  "affected_versions": [
+                    "v2.14.0"
+                  ],
                   "last_healthy_version": "v2.13.0",
                   "correlated_event": "Deploy v2.14.0 at 14:02 UTC",
                   "sample_stack_trace": "NullPointerException at PaymentProcessor.charge(PaymentProcessor.java:142)"
@@ -56,8 +58,7 @@
               {
                 "name": "report_impact_summary",
                 "args": {
-                  "estimated_users_affected": "~15,000 active users",
-                  "revenue_impact_per_minute": "$2,400/min"
+                  "estimated_users_affected": "~15,000 active users"
                 }
               }
             ]
@@ -65,7 +66,7 @@
           "final_response": {
             "parts": [
               {
-                "text": "Investigation complete. Payment-service is fully down since v2.14.0 deploy. NullPointerException in PaymentProcessor.charge() at ~200/min. Checkout and order services degraded as downstream dependencies. Estimated ~15,000 users affected with ~$2,400/min revenue impact."
+                "text": "Investigation complete. Payment-service is fully down since v2.14.0 deploy. NullPointerException in PaymentProcessor.charge() at ~200/min. Checkout and order services degraded as downstream dependencies. Estimated ~15,000 users affected."
               }
             ]
           }
@@ -80,7 +81,7 @@
           "user_content": {
             "parts": [
               {
-                "text": "Triage result: P2 incident on api-gateway in production. Category: latency. Summary: API response times spiked 6x — latency_p99 at 12400ms (threshold 2000ms). RDS connection pool exhaustion suspected. ~40% of requests timing out. Source: Datadog."
+                "text": "Triage result: P2 incident on api-gateway in production. Category: latency. Summary: API response times spiked 6x \u2014 latency_p99 at 12400ms (threshold 2000ms). RDS connection pool exhaustion suspected. ~40% of requests timing out. Source: Datadog."
               }
             ]
           },
@@ -92,7 +93,9 @@
                   "error_pattern": "ConnectionPoolExhaustedException: unable to acquire connection within 5000ms",
                   "first_occurrence": "09:45 UTC",
                   "frequency": "~80/min",
-                  "affected_versions": ["v4.2.1"],
+                  "affected_versions": [
+                    "v4.2.1"
+                  ],
                   "last_healthy_version": "v4.2.1",
                   "correlated_event": "Traffic spike from marketing campaign at 09:30 UTC",
                   "sample_stack_trace": null
@@ -109,8 +112,7 @@
               {
                 "name": "report_impact_summary",
                 "args": {
-                  "estimated_users_affected": "~8,000 users experiencing timeouts",
-                  "revenue_impact_per_minute": "$800/min"
+                  "estimated_users_affected": "~8,000 users experiencing timeouts"
                 }
               }
             ]
@@ -118,7 +120,7 @@
           "final_response": {
             "parts": [
               {
-                "text": "Investigation complete. API gateway connection pool exhaustion triggered by traffic spike from marketing campaign. ~40% of requests timing out, affecting ~8,000 users with ~$800/min revenue impact."
+                "text": "Investigation complete. API gateway connection pool exhaustion triggered by traffic spike from marketing campaign. ~40% of requests timing out, affecting ~8,000 users."
               }
             ]
           }
@@ -145,7 +147,9 @@
                   "error_pattern": "Slow query warnings: recommendation scoring taking >500ms",
                   "first_occurrence": "11:20 UTC",
                   "frequency": "~20/min",
-                  "affected_versions": ["v1.8.3"],
+                  "affected_versions": [
+                    "v1.8.3"
+                  ],
                   "last_healthy_version": "v1.8.3",
                   "correlated_event": null,
                   "sample_stack_trace": null
@@ -162,8 +166,7 @@
               {
                 "name": "report_impact_summary",
                 "args": {
-                  "estimated_users_affected": "~2,000 users seeing slower recommendations",
-                  "revenue_impact_per_minute": null
+                  "estimated_users_affected": "~2,000 users seeing slower recommendations"
                 }
               }
             ]
@@ -171,7 +174,7 @@
           "final_response": {
             "parts": [
               {
-                "text": "Investigation complete. Two recommendation-engine instances running hot with slow query warnings. No correlated deploy or event — likely organic traffic growth. Minimal user impact, no revenue impact."
+                "text": "Investigation complete. Two recommendation-engine instances running hot with slow query warnings. No correlated deploy or event \u2014 likely organic traffic growth. Minimal user impact."
               }
             ]
           }
@@ -186,7 +189,7 @@
           "user_content": {
             "parts": [
               {
-                "text": "Triage result: P1 incident on auth-service in production. Category: security. Summary: Unusual bulk data export detected from admin API — 340 anomalous access patterns (threshold 10). Source IP not in allow-list. Customer PII endpoints accessed. Source: Datadog."
+                "text": "Triage result: P1 incident on auth-service in production. Category: security. Summary: Unusual bulk data export detected from admin API \u2014 340 anomalous access patterns (threshold 10). Source IP not in allow-list. Customer PII endpoints accessed. Source: Datadog."
               }
             ]
           },
@@ -195,12 +198,14 @@
               {
                 "name": "report_log_findings",
                 "args": {
-                  "error_pattern": "Unauthorized admin API access from IP 203.0.113.42 — bulk GET requests to /api/admin/users/export and /api/admin/users/{id}/pii",
+                  "error_pattern": "Unauthorized admin API access from IP 203.0.113.42 \u2014 bulk GET requests to /api/admin/users/export and /api/admin/users/{id}/pii",
                   "first_occurrence": "03:17 UTC",
                   "frequency": "~340 requests over 22 minutes",
-                  "affected_versions": ["v6.1.0"],
+                  "affected_versions": [
+                    "v6.1.0"
+                  ],
                   "last_healthy_version": "v6.1.0",
-                  "correlated_event": "Admin API token last rotated 90 days ago — likely compromised credential",
+                  "correlated_event": "Admin API token last rotated 90 days ago \u2014 likely compromised credential",
                   "sample_stack_trace": null
                 }
               },
@@ -223,8 +228,7 @@
               {
                 "name": "report_impact_summary",
                 "args": {
-                  "estimated_users_affected": "~50,000 users whose PII may have been exposed",
-                  "revenue_impact_per_minute": null
+                  "estimated_users_affected": "~50,000 users whose PII may have been exposed"
                 }
               }
             ]
@@ -247,7 +251,7 @@
           "user_content": {
             "parts": [
               {
-                "text": "Triage result: P2 incident on cache-service in production. Category: availability. Summary: Redis cluster flapping — availability at 94% (threshold 99%). Nodes alternating between healthy and unhealthy every 2-3 minutes. Cache misses causing elevated latency on dependent services. Source: CloudWatch."
+                "text": "Triage result: P2 incident on cache-service in production. Category: availability. Summary: Redis cluster flapping \u2014 availability at 94% (threshold 99%). Nodes alternating between healthy and unhealthy every 2-3 minutes. Cache misses causing elevated latency on dependent services. Source: CloudWatch."
               }
             ]
           },
@@ -256,12 +260,14 @@
               {
                 "name": "report_log_findings",
                 "args": {
-                  "error_pattern": "RedisConnectionException: Connection reset by peer — cluster node failover in progress",
+                  "error_pattern": "RedisConnectionException: Connection reset by peer \u2014 cluster node failover in progress",
                   "first_occurrence": "16:30 UTC",
                   "frequency": "~150/min during flap cycles",
-                  "affected_versions": ["v2.3.0"],
+                  "affected_versions": [
+                    "v2.3.0"
+                  ],
                   "last_healthy_version": "v2.3.0",
-                  "correlated_event": "Redis cluster maintenance window ended at 16:25 UTC — node rebalancing triggered",
+                  "correlated_event": "Redis cluster maintenance window ended at 16:25 UTC \u2014 node rebalancing triggered",
                   "sample_stack_trace": null
                 }
               },
@@ -300,8 +306,7 @@
               {
                 "name": "report_impact_summary",
                 "args": {
-                  "estimated_users_affected": "~20,000 users experiencing intermittent slowness across multiple features",
-                  "revenue_impact_per_minute": "$500/min"
+                  "estimated_users_affected": "~20,000 users experiencing intermittent slowness across multiple features"
                 }
               }
             ]
@@ -309,7 +314,7 @@
           "final_response": {
             "parts": [
               {
-                "text": "Investigation complete. Redis cluster flapping after maintenance window, causing cascading cache misses across api-gateway, search-service, and user-profile-service. ~20,000 users affected with intermittent slowness. ~$500/min revenue impact from degraded checkout experience."
+                "text": "Investigation complete. Redis cluster flapping after maintenance window, causing cascading cache misses across api-gateway, search-service, and user-profile-service. ~20,000 users affected with intermittent slowness."
               }
             ]
           }
@@ -333,11 +338,13 @@
               {
                 "name": "report_log_findings",
                 "args": {
-                  "error_pattern": "HealthCheckFailedException: instances in us-east-1a failing TCP health checks — network unreachable",
+                  "error_pattern": "HealthCheckFailedException: instances in us-east-1a failing TCP health checks \u2014 network unreachable",
                   "first_occurrence": "11:42 UTC",
-                  "frequency": "continuous — all us-east-1a instances affected",
-                  "affected_versions": ["multiple"],
-                  "last_healthy_version": "N/A — infrastructure failure, not code change",
+                  "frequency": "continuous \u2014 all us-east-1a instances affected",
+                  "affected_versions": [
+                    "multiple"
+                  ],
+                  "last_healthy_version": "N/A \u2014 infrastructure failure, not code change",
                   "correlated_event": "AWS us-east-1a connectivity degradation reported on AWS status page at 11:40 UTC",
                   "sample_stack_trace": null
                 }
@@ -377,8 +384,7 @@
               {
                 "name": "report_impact_summary",
                 "args": {
-                  "estimated_users_affected": "~30,000 users — approximately one-third of traffic routed through us-east-1a",
-                  "revenue_impact_per_minute": "$3,500/min"
+                  "estimated_users_affected": "~30,000 users \u2014 approximately one-third of traffic routed through us-east-1a"
                 }
               }
             ]
@@ -386,7 +392,7 @@
           "final_response": {
             "parts": [
               {
-                "text": "Investigation complete. AWS us-east-1a AZ failure impacting all services hosted in that zone. Payment, order, user-profile, and api-gateway services degraded with ~33% capacity loss. ~30,000 users affected with ~$3,500/min revenue impact. Infrastructure failure — not caused by code change."
+                "text": "Investigation complete. AWS us-east-1a AZ failure impacting all services hosted in that zone. Payment, order, user-profile, and api-gateway services degraded with ~33% capacity loss. ~30,000 users affected. Infrastructure failure \u2014 not caused by code change."
               }
             ]
           }
@@ -410,10 +416,12 @@
               {
                 "name": "report_log_findings",
                 "args": {
-                  "error_pattern": "OOMKilled: container exceeded memory limit 2Gi — heap dump shows growing HashMap in UserCacheManager.loadUserProfiles()",
+                  "error_pattern": "OOMKilled: container exceeded memory limit 2Gi \u2014 heap dump shows growing HashMap in UserCacheManager.loadUserProfiles()",
                   "first_occurrence": "06:15 UTC",
                   "frequency": "OOMKill events every ~45 minutes per affected pod",
-                  "affected_versions": ["v3.5.2"],
+                  "affected_versions": [
+                    "v3.5.2"
+                  ],
                   "last_healthy_version": "v3.5.1",
                   "correlated_event": "Deploy v3.5.2 at 02:00 UTC introduced new user profile caching logic",
                   "sample_stack_trace": "java.lang.OutOfMemoryError: Java heap space at UserCacheManager.loadUserProfiles(UserCacheManager.java:87)"
@@ -438,8 +446,7 @@
               {
                 "name": "report_impact_summary",
                 "args": {
-                  "estimated_users_affected": "~10,000 users experiencing intermittent profile loading failures",
-                  "revenue_impact_per_minute": "$200/min"
+                  "estimated_users_affected": "~10,000 users experiencing intermittent profile loading failures"
                 }
               }
             ]
@@ -447,7 +454,7 @@
           "final_response": {
             "parts": [
               {
-                "text": "Investigation complete. Memory leak in UserCacheManager introduced in v3.5.2 deploy, causing OOMKill events every ~45 minutes. 2 of 5 pods affected, causing ~30% error rate on profile lookups. ~10,000 users impacted with ~$200/min revenue impact."
+                "text": "Investigation complete. Memory leak in UserCacheManager introduced in v3.5.2 deploy, causing OOMKill events every ~45 minutes. 2 of 5 pods affected, causing ~30% error rate on profile lookups. ~10,000 users impacted."
               }
             ]
           }
@@ -462,7 +469,7 @@
           "user_content": {
             "parts": [
               {
-                "text": "Triage result: P2 incident on inventory-service in production. Category: data_integrity. Summary: Database replication lag at 45 seconds (threshold 5s). Customers seeing stale inventory counts — items showing available but failing at checkout. Source: CloudWatch."
+                "text": "Triage result: P2 incident on inventory-service in production. Category: data_integrity. Summary: Database replication lag at 45 seconds (threshold 5s). Customers seeing stale inventory counts \u2014 items showing available but failing at checkout. Source: CloudWatch."
               }
             ]
           },
@@ -471,10 +478,12 @@
               {
                 "name": "report_log_findings",
                 "args": {
-                  "error_pattern": "InventoryCheckFailure: item_id=%s shows available=true on read replica but available=false on primary — stale read",
+                  "error_pattern": "InventoryCheckFailure: item_id=%s shows available=true on read replica but available=false on primary \u2014 stale read",
                   "first_occurrence": "15:20 UTC",
                   "frequency": "~50/min and increasing",
-                  "affected_versions": ["v2.1.0"],
+                  "affected_versions": [
+                    "v2.1.0"
+                  ],
                   "last_healthy_version": "v2.1.0",
                   "correlated_event": "Large batch import of 50,000 inventory updates started at 15:10 UTC",
                   "sample_stack_trace": null
@@ -499,8 +508,7 @@
               {
                 "name": "report_impact_summary",
                 "args": {
-                  "estimated_users_affected": "~5,000 users encountering checkout failures from stale inventory",
-                  "revenue_impact_per_minute": "$600/min"
+                  "estimated_users_affected": "~5,000 users encountering checkout failures from stale inventory"
                 }
               }
             ]
@@ -508,7 +516,7 @@
           "final_response": {
             "parts": [
               {
-                "text": "Investigation complete. Replication lag caused by large batch inventory import overloading the replica. Stale reads causing checkout failures for ~5,000 users. Inventory and checkout services degraded. ~$600/min revenue impact."
+                "text": "Investigation complete. Replication lag caused by large batch inventory import overloading the replica. Stale reads causing checkout failures for ~5,000 users. Inventory and checkout services degraded."
               }
             ]
           }

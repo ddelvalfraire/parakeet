@@ -245,9 +245,6 @@ async def run_triage_to_remediation(
             "estimated_users_affected": (
                 impact.get("estimated_users_affected") if impact else None
             ),
-            "revenue_impact_per_minute": (
-                impact.get("revenue_impact_per_minute") if impact else None
-            ),
         }
         await _update_status(db, incident, IncidentStatus.root_cause)
         await _save_event(
@@ -449,9 +446,18 @@ async def run_retro(
 
     retro_msg = "\n".join(context_lines)
     retro_calls = await _run_agent(retro_agent, retro_msg, incident_id)
-    retro_data = next(
+    retro_args = next(
         (c["args"] for c in retro_calls if c["name"] == "write_post_mortem"), None
     )
+
+    # Restructure flat tool args into the nested PostMortem shape
+    retro_data: dict[str, Any] | None = None
+    if retro_args:
+        retro_data = dict(retro_args)
+        retro_data["impact"] = {
+            "users_affected": retro_data.pop("users_affected", "unknown"),
+            "services_degraded": retro_data.pop("services_degraded", []),
+        }
 
     if retro_data:
         await _update_status(

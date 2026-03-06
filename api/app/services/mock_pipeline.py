@@ -194,7 +194,6 @@ def _mock_investigation(alert: dict[str, Any], triage: dict[str, Any]) -> dict[s
         "log_findings": log_findings,
         "affected_services": affected_services,
         "estimated_users_affected": "~1,500-3,000 active sessions",
-        "revenue_impact_per_minute": "$800" if triage.get("severity") in ("P1", "P2") else None,
     }
 
 
@@ -305,17 +304,49 @@ def _mock_retro(
         "title": f"{severity}: {service} incident — {created[:10]}",
         "duration": "~15-20 minutes",
         "severity": severity,
+        "summary": (
+            f"A configuration error in the latest deployment of {service} "
+            f"caused elevated error rates affecting ~1,500-3,000 users. "
+            f"The incident was resolved by rolling back to the previous "
+            f"stable version within approximately 15-20 minutes."
+        ),
         "impact": {
             "users_affected": "~1,500-3,000",
-            "estimated_revenue_loss": "$12,000" if severity in ("P1", "P2") else None,
             "services_degraded": services_degraded,
         },
         "timeline": timeline,
         "root_cause": (
             f"A configuration error in the latest deployment of {service} "
-            f"caused request failures on the critical path."
+            f"caused request failures on the critical path. A required "
+            f"environment variable was missing from the new deployment "
+            f"manifest, causing null reference exceptions."
         ),
-        "remediation_taken": f"Rolled back {service} to the previous stable version.",
+        "contributing_factors": [
+            "No canary deployment — change went straight to 100% traffic",
+            "Missing environment variable validation on startup",
+            "No automated rollback trigger on error rate spike",
+        ],
+        "remediation_taken": (
+            f"Rolled back {service} to the previous stable version. "
+            f"Verified error rates returned to baseline and confirmed "
+            f"all affected services recovered."
+        ),
+        "lessons_learned": {
+            "went_well": [
+                "Alert fired within 2 minutes of the error spike starting",
+                "On-call engineer responded and began triage within 5 minutes",
+                "Rollback procedure was well-documented and executed smoothly",
+            ],
+            "went_wrong": [
+                "Deployment went to 100% traffic with no canary phase",
+                "Missing config validation allowed the bad deploy to start",
+                "No automated rollback despite error rate exceeding threshold",
+            ],
+            "got_lucky": [
+                "The incident occurred during off-peak hours, limiting user impact",
+                "No data corruption resulted from the failed requests",
+            ],
+        },
         "prevention": [
             "Add environment variable validation to deployment startup checks",
             "Enforce canary deployments for critical services",
@@ -410,7 +441,6 @@ def _mock_demo_investigation(scenario: DemoScenario) -> dict[str, Any]:
             {"service": "frontend", "status": "degraded", "impact": "downstream"},
         ],
         "estimated_users_affected": "~2,000-5,000 active sessions",
-        "revenue_impact_per_minute": "$500" if scenario.severity == "P1" else "$200",
     }
 
 

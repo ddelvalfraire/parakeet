@@ -168,7 +168,6 @@ export const INCIDENT_DETAIL: Incident = {
           },
         ],
         estimated_users_affected: '~4,200 active sessions',
-        revenue_impact_per_minute: '$2,800',
       },
     },
     {
@@ -256,24 +255,11 @@ export const POSTMORTEM_FIXTURE: PostMortem = {
   title: 'P1: Checkout Service Outage — 2026-03-04',
   duration: '14:21 - 14:38 UTC (17 minutes)',
   severity: 'P1',
+  summary:
+    'A missing STRIPE_API_KEY in the v2.4.1 deployment caused checkout-service to return 5xx errors for 17 minutes, affecting ~4,200 users. The incident was resolved by rolling back to v2.4.0.',
   impact: {
     users_affected: '~4,200',
-    estimated_revenue_loss: '$47,600',
     services_degraded: ['order-service', 'inventory-service'],
-    metrics: {
-      failed_requests: { total: '12,847', peak_rate: '342/s' },
-      error_rate: { peak: '94.2%', baseline: '0.3%' },
-      latency_p99: { peak: '8,420 ms', baseline: '180 ms' },
-      revenue_loss: { total: '$47,600', rate: '$2,800/min' },
-      time_to_detect: '1m 52s',
-      time_to_resolve: '17 min',
-      services_affected: [
-        { name: 'checkout-service', status: 'down' },
-        { name: 'order-service', status: 'degraded' },
-        { name: 'inventory-service', status: 'degraded' },
-        { name: 'notification-service', status: 'healthy' },
-      ],
-    },
   },
   timeline: [
     {
@@ -301,8 +287,30 @@ export const POSTMORTEM_FIXTURE: PostMortem = {
     { time: '14:38:00', event: 'Incident resolved' },
   ],
   root_cause:
-    'Missing STRIPE_API_KEY environment variable in v2.4.1 deployment config.',
-  remediation_taken: 'Rolled back to v2.4.0 via kubectl rollout undo.',
+    'Missing STRIPE_API_KEY environment variable in v2.4.1 deployment config. The new deployment manifest omitted the secret reference, causing all payment processing requests to fail with null reference exceptions.',
+  contributing_factors: [
+    'No canary deployment — v2.4.1 went straight to 100% traffic',
+    'Missing environment variable validation on service startup',
+    'No automated rollback trigger despite 94% error rate',
+  ],
+  remediation_taken:
+    'Rolled back checkout-service to v2.4.0 via kubectl rollout undo. Verified error rates returned to baseline and confirmed all downstream services recovered.',
+  lessons_learned: {
+    went_well: [
+      'Alert fired within 2 minutes of the first errors',
+      'On-call engineer responded and began triage within 3 minutes',
+      'Rollback procedure was well-documented and executed in under 5 minutes',
+    ],
+    went_wrong: [
+      'Deployment went to 100% traffic with no canary or staged rollout',
+      'Missing config validation allowed the bad deploy to pass CI checks',
+      'No automated rollback despite error rate exceeding all thresholds',
+    ],
+    got_lucky: [
+      'The incident occurred during a lower-traffic window, limiting blast radius',
+      'No payment data corruption — failed requests returned errors cleanly',
+    ],
+  },
   prevention: [
     'Add environment variable validation to deployment startup checks',
     'Enforce canary deployments for checkout-service',
