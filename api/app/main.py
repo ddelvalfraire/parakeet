@@ -16,7 +16,7 @@ from app.seed import seed_db
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with async_session_factory() as session:
