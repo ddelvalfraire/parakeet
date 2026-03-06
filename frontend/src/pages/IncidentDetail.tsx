@@ -270,8 +270,8 @@ export default function IncidentDetail() {
           />
         </section>
 
-        {/* Right: Incident panel */}
-        <aside>
+        {/* Right: Incident panel — sticky so it stays visible while scrolling timeline */}
+        <aside className="lg:sticky lg:top-20 lg:self-start">
           <IncidentPanel
             incident={incident}
             onGenerateRetro={handleGenerateRetro}

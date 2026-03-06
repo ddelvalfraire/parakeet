@@ -13,6 +13,7 @@ import type {
   ResetDemoResponse,
   MergeFixRequest,
   ResolveManuallyRequest,
+  SimilarIncidentsResponse,
 } from '@/types/api'
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -98,5 +99,10 @@ export const httpClient: ApiClient = {
       method: 'POST',
       body: JSON.stringify(req),
     })
+  },
+
+  // Similar incidents
+  async getSimilarIncidents(incidentId: string): Promise<SimilarIncidentsResponse> {
+    return request(`/incidents/${incidentId}/similar`)
   },
 }
