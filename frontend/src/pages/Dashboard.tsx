@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link } from 'react-router'
 import { api } from '@/api'
 import { cn } from '@/lib/utils'
+import DemoLauncher from '@/components/demo/DemoLauncher'
 import {
   severityConfig,
   statusConfig,
@@ -497,6 +498,9 @@ export default function Dashboard() {
           Refresh
         </Button>
       </div>
+
+      {/* Demo launcher */}
+      <DemoLauncher />
 
       {/* Stats overview */}
       {loading ? (

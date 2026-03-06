@@ -12,21 +12,53 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Clock, Shield, Star } from 'lucide-react'
+import { Clock, ExternalLink, GitPullRequest, Shield, Star, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { riskConfig } from '@/lib/styles'
+import ManualResolutionDialog from './ManualResolutionDialog'
 import type { RemediationResult, RemediationOption } from '@/types'
 
 interface Props {
   payload: RemediationResult
   approved: boolean
   onApprove: (optionId: string, notes: string) => Promise<void>
+  onMergeFix?: (notes: string) => Promise<void>
+  onResolveManually?: (explanation: string) => Promise<void>
+}
+
+function DiffView({ diff }: { diff: string }) {
+  const lines = diff.split('\n')
+  return (
+    <div className="rounded-md border bg-muted/30 overflow-x-auto text-xs">
+      <pre className="p-3 leading-relaxed">
+        {lines.map((line, i) => {
+          let cls = 'text-muted-foreground'
+          if (line.startsWith('+') && !line.startsWith('+++')) {
+            cls = 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40'
+          } else if (line.startsWith('-') && !line.startsWith('---')) {
+            cls = 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40'
+          } else if (line.startsWith('@@')) {
+            cls = 'text-blue-600 dark:text-blue-400'
+          } else if (line.startsWith('diff') || line.startsWith('---') || line.startsWith('+++')) {
+            cls = 'text-muted-foreground font-semibold'
+          }
+          return (
+            <div key={i} className={cn('px-1 -mx-1', cls)}>
+              {line || ' '}
+            </div>
+          )
+        })}
+      </pre>
+    </div>
+  )
 }
 
 export default function RemediationCard({
   payload,
   approved,
   onApprove,
+  onMergeFix,
+  onResolveManually,
 }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedOption, setSelectedOption] = useState<RemediationOption | null>(
@@ -35,8 +67,12 @@ export default function RemediationCard({
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
+  const [manualDialogOpen, setManualDialogOpen] = useState(false)
 
-  const maxConfidence = Math.max(...payload.options.map((o) => o.confidence))
+  const hasPR = !!payload.pr
+  const maxConfidence = payload.options.length > 0
+    ? Math.max(...payload.options.map((o) => o.confidence))
+    : 0
 
   function handleApproveClick(option: RemediationOption) {
     setSelectedOption(option)
@@ -61,11 +97,81 @@ export default function RemediationCard({
     }
   }
 
+  async function handleMergeFix() {
+    if (!onMergeFix) return
+    setSubmitting(true)
+    setApproveError(null)
+    try {
+      await onMergeFix(notes)
+    } catch (err) {
+      setApproveError(
+        err instanceof Error ? err.message : 'Merge failed. Please retry.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <>
       <div className="space-y-3">
+        {/* PR Fix Section */}
+        {hasPR && (
+          <div className="rounded-lg border bg-card p-4 space-y-3 ring-2 ring-green-500/30 border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-2 flex-wrap">
+              <GitPullRequest className="h-4 w-4 text-green-600" />
+              <h4 className="text-sm font-semibold">
+                Pull Request #{payload.pr!.pr_number}
+              </h4>
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 gap-1">
+                <Star className="h-3 w-3" />
+                Code Fix
+              </Badge>
+              <a
+                href={payload.pr!.pr_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              >
+                View on GitHub
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+
+            <p className="text-xs text-muted-foreground font-mono">
+              {payload.pr!.file_path}
+            </p>
+
+            {payload.pr!.diff && <DiffView diff={payload.pr!.diff} />}
+
+            {/* Action buttons */}
+            {!approved && (
+              <div className="flex items-center gap-2 pt-1">
+                <Button size="sm" onClick={handleMergeFix} disabled={submitting}>
+                  {submitting ? 'Merging...' : 'Approve & Merge'}
+                </Button>
+                {onResolveManually && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setManualDialogOpen(true)}
+                  >
+                    <Wrench className="h-3.5 w-3.5 mr-1" />
+                    Resolve Manually
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {approveError && (
+              <p className="text-sm text-destructive">{approveError}</p>
+            )}
+          </div>
+        )}
+
+        {/* Standard remediation options */}
         {payload.options.map((option) => {
-          const isRecommended = option.confidence === maxConfidence
+          const isRecommended = option.confidence === maxConfidence && !hasPR
           const pct = Math.round(option.confidence * 100)
 
           return (
@@ -122,8 +228,8 @@ export default function RemediationCard({
                 ))}
               </ol>
 
-              {/* Approve button */}
-              {!approved && (
+              {/* Approve button — only show for non-PR options */}
+              {!approved && !hasPR && (
                 <Button
                   size="sm"
                   variant={isRecommended ? 'default' : 'outline'}
@@ -137,6 +243,7 @@ export default function RemediationCard({
         })}
       </div>
 
+      {/* Standard approval dialog (non-PR flow) */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -174,6 +281,15 @@ export default function RemediationCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Manual resolution dialog */}
+      {onResolveManually && (
+        <ManualResolutionDialog
+          open={manualDialogOpen}
+          onOpenChange={setManualDialogOpen}
+          onResolve={onResolveManually}
+        />
+      )}
     </>
   )
 }
