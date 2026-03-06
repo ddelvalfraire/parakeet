@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 import { api } from '@/api'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { Activity } from 'lucide-react'
+import parakeetLogo from '@/assets/Parakeet-logo.png'
 
 export default function DashboardLayout() {
   const location = useLocation()
@@ -32,7 +32,7 @@ export default function DashboardLayout() {
             to="/"
             className="flex items-center gap-2 text-lg font-semibold tracking-tight"
           >
-            <Activity className="size-5 text-emerald-500" />
+            <img src={parakeetLogo} alt="Parakeet" className="size-6" />
             Parakeet
           </Link>
           <nav className="ml-8 flex gap-4">

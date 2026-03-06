@@ -20,6 +20,7 @@ import {
   TrendingDown,
   Terminal,
 } from "lucide-react"
+import parakeetLogo from "@/assets/Parakeet-logo.png"
 
 // ── Incident simulation ───────────────────────────────────────
 
@@ -321,7 +322,10 @@ export default function Landing() {
       {/* ── Navigation ── */}
       <nav className="fixed top-0 z-50 w-full border-b border-white/[0.06] bg-[#09090b]/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <span className="text-lg font-semibold tracking-tight">Parakeet</span>
+          <span className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+            <img src={parakeetLogo} alt="Parakeet" className="size-6 brightness-0 invert" />
+            Parakeet
+          </span>
           <div className="flex items-center gap-6">
             <a
               href="#features"
@@ -588,7 +592,10 @@ export default function Landing() {
       {/* ── Footer ── */}
       <footer className="border-t border-white/[0.06] px-6 py-12">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 text-center">
-          <span className="text-lg font-semibold tracking-tight">Parakeet</span>
+          <span className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+            <img src={parakeetLogo} alt="Parakeet" className="size-6 brightness-0 invert" />
+            Parakeet
+          </span>
           <p className="text-sm text-gray-500">
             Built for the Amazon Nova AI Hackathon 2026.
           </p>
