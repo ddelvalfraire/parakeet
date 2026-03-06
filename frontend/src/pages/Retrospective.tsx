@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router'
+import { useParams, Link } from 'react-router'
 import { api } from '@/api'
+import type { Incident } from '@/types/incident'
 import type { PostMortem, PostMortemMetrics } from '@/types/agents'
 import {
   severityConfig,
@@ -9,6 +10,7 @@ import {
   spacing,
   layout,
 } from '@/lib/styles'
+import { formatTime } from '@/lib/incident'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,14 +19,13 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardAction,
 } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  ArrowLeft,
   Clock,
-  Download,
   AlertTriangle,
   Wrench,
   ShieldCheck,
@@ -42,17 +43,22 @@ import {
 export default function Retrospective() {
   const { id } = useParams<{ id: string }>()
   const [retro, setRetro] = useState<PostMortem | null>(null)
+  const [incident, setIncident] = useState<Incident | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
     const controller = new AbortController()
 
-    api
-      .generateRetro(id)
-      .then((res) => {
+    // Fetch both the retro and the incident context in parallel
+    Promise.all([
+      api.generateRetro(id),
+      api.getIncident(id),
+    ])
+      .then(([retroRes, incidentRes]) => {
         if (!controller.signal.aborted) {
-          setRetro(res.post_mortem)
+          setRetro(retroRes.post_mortem)
+          setIncident(incidentRes.incident)
         }
       })
       .catch((err) => {
@@ -88,39 +94,58 @@ export default function Retrospective() {
   const metrics = retro.impact.metrics
 
   return (
-    <div className={cn(spacing.page, layout.centeredContentNarrow)}>
-      {/* ── Header Card ──────────────────────────────────── */}
+    <div className={spacing.section}>
+      {/* Back navigation */}
+      <Button variant="ghost" size="sm" className="-ml-2 gap-1.5" asChild>
+        <Link to={id ? `/incident/${id}` : '/dashboard'}>
+          <ArrowLeft className="size-4" />
+          Back to Incident
+        </Link>
+      </Button>
+
+      {/* Header Card */}
       <Card className={cn('overflow-hidden border-l-4', sevConfig.border)}>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className={typography.h2}>{retro.title}</h1>
-            <Badge className={cn('font-semibold', sevConfig.badge)}>
-              {retro.severity} &mdash; {sevConfig.label}
-            </Badge>
+        <CardContent className="py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <Badge className={cn('font-semibold', sevConfig.badge)}>
+                  {retro.severity} &mdash; {sevConfig.label}
+                </Badge>
+                <h1 className={typography.h2}>{retro.title}</h1>
+              </div>
+              <p className="flex items-center gap-1.5 text-muted-foreground mt-2">
+                <Clock className="size-4" />
+                <span className={typography.body}>Duration: {retro.duration}</span>
+              </p>
+            </div>
           </div>
-          <CardAction>
-            <Button variant="outline" size="sm">
-              <Download />
-              Export PDF
-            </Button>
-          </CardAction>
-          <p className="flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="size-4" />
-            <span className={typography.body}>{retro.duration}</span>
-          </p>
-        </CardHeader>
+
+          {/* Incident context strip */}
+          {incident && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                {incident.service}
+              </span>
+              <span>&middot;</span>
+              <span>{incident.environment}</span>
+              <span>&middot;</span>
+              <span className="font-mono text-xs">#{incident.id}</span>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
-      {/* ── Impact Dashboard ─────────────────────────────── */}
+      {/* Impact Dashboard */}
       {metrics ? (
         <ImpactDashboard metrics={metrics} />
       ) : (
         <ImpactFallback impact={retro.impact} />
       )}
 
-      {/* ── Timeline ─────────────────────────────────────── */}
-      <section className="mt-10">
-        <h2 className={cn(typography.h4, 'mb-6')}>Timeline</h2>
+      {/* Timeline */}
+      <section>
+        <h2 className={cn(typography.h4, 'mb-4')}>Timeline</h2>
         <div className={layout.timeline}>
           {retro.timeline.map((entry, i) => {
             const isFirst = i === 0
@@ -136,6 +161,11 @@ export default function Retrospective() {
                 ? sevConfig.text
                 : 'text-muted-foreground/40'
 
+            // Format the timestamp if it looks like ISO
+            const displayTime = entry.time.includes('T')
+              ? formatTime(entry.time)
+              : entry.time
+
             return (
               <div key={i} className="relative flex gap-4">
                 <Icon
@@ -146,14 +176,13 @@ export default function Retrospective() {
                 />
                 <span
                   className={cn(
-                    typography.mono,
-                    'w-20 shrink-0 pt-px',
+                    'font-mono text-xs w-20 shrink-0 pt-px tabular-nums',
                     isLast
                       ? 'font-semibold text-green-600 dark:text-green-400'
                       : 'text-muted-foreground',
                   )}
                 >
-                  {entry.time}
+                  {displayTime}
                 </span>
                 <p
                   className={cn(
@@ -170,71 +199,65 @@ export default function Retrospective() {
         </div>
       </section>
 
-      <Separator className="my-10" />
+      <Separator />
 
-      {/* ── Root Cause ───────────────────────────────────── */}
-      <section>
-        <Card className="border-l-4 border-l-amber-500 dark:border-l-amber-600">
-          <CardHeader className="pb-0">
-            <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
-              <AlertTriangle className="size-5 text-amber-500" />
-              Root Cause
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={cn(typography.bodyLarge, 'leading-relaxed')}>
-              {retro.root_cause}
-            </p>
-          </CardContent>
-        </Card>
-      </section>
+      {/* Root Cause */}
+      <Card className="border-l-4 border-l-amber-500 dark:border-l-amber-600">
+        <CardHeader className="pb-0">
+          <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
+            <AlertTriangle className="size-5 text-amber-500" />
+            Root Cause
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className={cn(typography.bodyLarge, 'leading-relaxed')}>
+            {retro.root_cause}
+          </p>
+        </CardContent>
+      </Card>
 
-      {/* ── Remediation Taken ────────────────────────────── */}
-      <section className="mt-6">
-        <Card>
-          <CardHeader className="pb-0">
-            <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
-              <Wrench className="size-5 text-muted-foreground" />
-              Remediation Taken
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={cn(typography.body, 'text-muted-foreground')}>
-              {retro.remediation_taken}
-            </p>
-          </CardContent>
-        </Card>
-      </section>
+      {/* Remediation Taken */}
+      <Card>
+        <CardHeader className="pb-0">
+          <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
+            <Wrench className="size-5 text-muted-foreground" />
+            Remediation Taken
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className={cn(typography.body, 'text-muted-foreground')}>
+            {retro.remediation_taken}
+          </p>
+        </CardContent>
+      </Card>
 
-      {/* ── Prevention ───────────────────────────────────── */}
-      <section className="mt-6 pb-4">
-        <Card>
-          <CardHeader className="pb-0">
-            <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
-              <ShieldCheck className="size-5 text-muted-foreground" />
-              Prevention
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className={spacing.stack}>
-              {retro.prevention.map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <Checkbox id={`prevention-${i}`} className="mt-0.5" />
-                  <label
-                    htmlFor={`prevention-${i}`}
-                    className={cn(
-                      typography.body,
-                      'cursor-pointer select-none leading-relaxed',
-                    )}
-                  >
-                    {item}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </section>
+      {/* Prevention */}
+      <Card>
+        <CardHeader className="pb-0">
+          <CardTitle className={cn(typography.h4, 'flex items-center gap-2')}>
+            <ShieldCheck className="size-5 text-muted-foreground" />
+            Prevention
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className={spacing.stack}>
+            {retro.prevention.map((item, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <Checkbox id={`prevention-${i}`} className="mt-0.5" />
+                <label
+                  htmlFor={`prevention-${i}`}
+                  className={cn(
+                    typography.body,
+                    'cursor-pointer select-none leading-relaxed',
+                  )}
+                >
+                  {item}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -245,7 +268,7 @@ export default function Retrospective() {
 
 function ImpactDashboard({ metrics }: { metrics: PostMortemMetrics }) {
   return (
-    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <MetricCard
         icon={<Flame className="size-4" />}
         iconBg="bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400"
@@ -391,7 +414,7 @@ function ImpactFallback({
   impact: PostMortem['impact']
 }) {
   return (
-    <div className={cn(layout.cardGrid, 'mt-6')}>
+    <div className={layout.cardGrid}>
       <Card className="transition-colors hover:bg-accent/50">
         <CardContent>
           <span className={typography.label}>Users Affected</span>
@@ -427,18 +450,11 @@ function ImpactFallback({
 
 function RetroSkeleton() {
   return (
-    <div className={cn(spacing.page, layout.centeredContentNarrow)}>
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-80" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-          </div>
-          <Skeleton className="h-4 w-48" />
-        </CardHeader>
-      </Card>
+    <div className={spacing.section}>
+      <Skeleton className="h-8 w-36" />
+      <Skeleton className="h-36 rounded-xl" />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <Card key={i}>
             <CardContent>
@@ -453,7 +469,7 @@ function RetroSkeleton() {
         ))}
       </div>
 
-      <div className="mt-10 space-y-4">
+      <div className="space-y-4">
         <Skeleton className="h-6 w-24" />
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex gap-4">
