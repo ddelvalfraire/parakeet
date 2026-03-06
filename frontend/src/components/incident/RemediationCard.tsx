@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Clock, ExternalLink, GitPullRequest, Shield, Star, Wrench } from 'lucide-react'
+import { AlertTriangle, Clock, ExternalLink, GitPullRequest, Shield, Star, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { riskConfig } from '@/lib/styles'
 import ManualResolutionDialog from './ManualResolutionDialog'
@@ -110,6 +110,41 @@ export default function RemediationCard({
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (!payload.options.length && !hasPR) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
+          <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+            No remediation options available
+          </h4>
+        </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          The agent could not determine remediation options for this incident.
+          Manual intervention is required.
+        </p>
+        {onResolveManually && !approved && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3"
+            onClick={() => setManualDialogOpen(true)}
+          >
+            <Wrench className="h-3.5 w-3.5 mr-1" />
+            Resolve Manually
+          </Button>
+        )}
+        {onResolveManually && (
+          <ManualResolutionDialog
+            open={manualDialogOpen}
+            onOpenChange={setManualDialogOpen}
+            onResolve={onResolveManually}
+          />
+        )}
+      </div>
+    )
   }
 
   return (

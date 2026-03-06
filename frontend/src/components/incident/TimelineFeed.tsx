@@ -9,6 +9,7 @@ import RootCauseCard from './RootCauseCard'
 import RemediationCard from './RemediationCard'
 import HumanDecisionCard from './HumanDecisionCard'
 import ResolvedCard from './ResolvedCard'
+import SystemEventCard from './SystemEventCard'
 import type {
   TimelineEvent,
   TriageResult,
@@ -52,6 +53,11 @@ export default function TimelineFeed({
           optionTitle={optionTitleMap.get(decision.approved_option_id)}
         />
       )
+    }
+
+    if (event.type === 'system_event') {
+      const payload = event.payload as { error?: string; stage?: string; detail?: string }
+      return <SystemEventCard payload={payload} title={event.title} />
     }
 
     switch (event.stage) {

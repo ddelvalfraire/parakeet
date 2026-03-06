@@ -2,9 +2,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Activity,
+  AlertTriangle,
   Bell,
   CheckCircle2,
   Circle,
+  CircleAlert,
   FileText,
   Radio,
 } from 'lucide-react'
@@ -38,9 +40,15 @@ export default function IncidentPanel({
   onGenerateRetro,
   generatingRetro,
 }: Props) {
-  const currentIdx = STAGE_INDEX[incident.status]
+  const isErrored = incident.status === 'error' || incident.status === 'needs_input'
+  const currentIdx = isErrored
+    ? PIPELINE_ORDER.length  // show all stages as incomplete
+    : STAGE_INDEX[incident.status]
   const isResolved = incident.status === 'resolved'
   const sevCfg = severityConfig[incident.severity]
+  const completedStages = isErrored
+    ? new Set(incident.timeline.filter(e => e.type === 'agent_output').map(e => e.stage))
+    : null
 
   return (
     <div className="space-y-4">
@@ -88,15 +96,24 @@ export default function IncidentPanel({
         <div className="flex items-center gap-2">
           <Activity className="size-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold">Pipeline</h3>
-          <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-            {currentIdx + 1}/{PIPELINE_ORDER.length}
+          <span className={cn(
+            'ml-auto text-xs tabular-nums',
+            isErrored ? 'text-red-600 dark:text-red-400 font-medium' : 'text-muted-foreground',
+          )}>
+            {isErrored ? 'Stopped' : `${currentIdx + 1}/${PIPELINE_ORDER.length}`}
           </span>
         </div>
         <div className="space-y-0">
           {PIPELINE_ORDER.map((key, idx) => {
-            const isComplete = idx < currentIdx
-            const isCurrent = idx === currentIdx
-            const isFuture = idx > currentIdx
+            const isComplete = isErrored
+              ? completedStages?.has(key) ?? false
+              : idx < currentIdx
+            const isCurrent = !isErrored && idx === currentIdx
+            const isFuture = isErrored ? !(completedStages?.has(key) ?? false) : idx > currentIdx
+            // The first future stage in an errored pipeline is where it stopped
+            const isFailedAt = isErrored && isFuture && (
+              idx === 0 || (completedStages?.has(PIPELINE_ORDER[idx - 1]) ?? false)
+            )
 
             return (
               <div key={key} className="flex items-center gap-3">
@@ -106,7 +123,9 @@ export default function IncidentPanel({
                     <div
                       className={cn(
                         'h-2 w-0.5',
-                        isComplete || isCurrent ? 'bg-primary' : 'bg-border',
+                        isComplete || isCurrent ? 'bg-primary'
+                          : isFailedAt ? 'bg-red-400 dark:bg-red-500'
+                          : 'bg-border',
                       )}
                     />
                   )}
@@ -121,7 +140,13 @@ export default function IncidentPanel({
                         <span className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
                       </div>
                     )}
-                    {isFuture && (
+                    {isFailedAt && incident.status === 'error' && (
+                      <CircleAlert className="size-5 text-red-600 dark:text-red-400" />
+                    )}
+                    {isFailedAt && incident.status === 'needs_input' && (
+                      <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400" />
+                    )}
+                    {isFuture && !isFailedAt && (
                       <Circle className="size-5 text-muted-foreground/30" />
                     )}
                   </div>
@@ -140,7 +165,8 @@ export default function IncidentPanel({
                     'py-1 text-sm',
                     isComplete && 'text-muted-foreground',
                     isCurrent && 'font-semibold text-foreground',
-                    isFuture && 'text-muted-foreground/40',
+                    isFailedAt && 'font-semibold text-red-600 dark:text-red-400',
+                    isFuture && !isFailedAt && 'text-muted-foreground/40',
                   )}
                 >
                   {statusConfig[key].label}

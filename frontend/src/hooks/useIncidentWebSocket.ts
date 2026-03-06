@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 
 const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
@@ -20,7 +21,17 @@ export function useIncidentWebSocket(
       if (cancelled) return
       ws = new WebSocket(`${WS_BASE}/ws/incidents/${incidentId}`)
 
-      ws.onmessage = () => {
+      ws.onmessage = (msg) => {
+        try {
+          const data = JSON.parse(msg.data)
+          if (data.type === 'error' && data.payload?.message) {
+            toast.error(data.payload.message, {
+              description: `Stage: ${data.payload.stage ?? 'unknown'}`,
+            })
+          }
+        } catch {
+          // non-JSON message — ignore
+        }
         onEventRef.current()
       }
 
