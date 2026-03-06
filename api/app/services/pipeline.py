@@ -186,22 +186,44 @@ async def run_triage_to_remediation(
             })
             context_parts.append(f"Triage result: {json.dumps(triage_data)}")
         else:
-            logger.warning("Triage agent returned no classify_alert call for %s", incident_id)
-            context_parts.append(f"Alert: {alert_msg}")
+            logger.warning(
+                "Triage agent returned no classify_alert call for %s",
+                incident_id,
+            )
+            await _update_status(db, incident, IncidentStatus.needs_input)
+            await _save_event(
+                db, incident_id, IncidentStatus.triaging.value,
+                "Triage incomplete — agent could not classify alert",
+                {"error": "no_tool_call", "stage": "triage",
+                 "detail": "Agent did not call classify_alert"},
+            )
+            await db.commit()
+            await _broadcast(ws, incident_id, WSEventType.error, {
+                "stage": "triage",
+                "error": "no_tool_call",
+                "message": "Triage agent could not classify this alert",
+            })
+            return
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Triage failed for %s", incident_id)
+        await _update_status(db, incident, IncidentStatus.error)
         db.add(TimelineEventRow(
             id=_evt_id(),
             incident_id=incident_id,
             timestamp=_now(),
-            stage="failed",
+            stage=IncidentStatus.error.value,
             type=TimelineEventType.system_event.value,
             title="Triage agent failed",
-            payload={"error": "agent_error"},
+            payload={"error": "agent_error", "stage": "triage",
+                     "detail": str(exc)[:500]},
         ))
         await db.commit()
-        await _broadcast(ws, incident_id, WSEventType.error, {"stage": "triage"})
+        await _broadcast(ws, incident_id, WSEventType.error, {
+            "stage": "triage",
+            "error": "agent_error",
+            "message": "Triage agent encountered an error",
+        })
         return
 
     # --- 2. Investigation ---
@@ -239,19 +261,25 @@ async def run_triage_to_remediation(
         })
         context_parts.append(f"Investigation: {json.dumps(inv_data)}")
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Investigation failed for %s", incident_id)
+        await _update_status(db, incident, IncidentStatus.error)
         db.add(TimelineEventRow(
             id=_evt_id(),
             incident_id=incident_id,
             timestamp=_now(),
-            stage="failed",
+            stage=IncidentStatus.error.value,
             type=TimelineEventType.system_event.value,
             title="Investigation agent failed",
-            payload={"error": "agent_error"},
+            payload={"error": "agent_error", "stage": "investigation",
+                     "detail": str(exc)[:500]},
         ))
         await db.commit()
-        await _broadcast(ws, incident_id, WSEventType.error, {"stage": "investigation"})
+        await _broadcast(ws, incident_id, WSEventType.error, {
+            "stage": "investigation",
+            "error": "agent_error",
+            "message": "Investigation agent encountered an error",
+        })
         return
 
     # --- 3. Root cause ---
@@ -275,23 +303,44 @@ async def run_triage_to_remediation(
             })
             context_parts.append(f"Root cause: {json.dumps(rc_data)}")
         else:
-            logger.warning("Root cause agent returned no result for %s", incident_id)
-            await _broadcast(ws, incident_id, WSEventType.error, {"stage": "root_cause"})
+            logger.warning(
+                "Root cause agent returned no result for %s",
+                incident_id,
+            )
+            await _update_status(db, incident, IncidentStatus.needs_input)
+            await _save_event(
+                db, incident_id, IncidentStatus.root_cause.value,
+                "Root cause analysis inconclusive — needs human input",
+                {"error": "no_tool_call", "stage": "root_cause",
+                 "detail": "Agent did not call report_root_cause"},
+            )
+            await db.commit()
+            await _broadcast(ws, incident_id, WSEventType.error, {
+                "stage": "root_cause",
+                "error": "no_tool_call",
+                "message": "Could not determine root cause",
+            })
             return
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Root cause failed for %s", incident_id)
+        await _update_status(db, incident, IncidentStatus.error)
         db.add(TimelineEventRow(
             id=_evt_id(),
             incident_id=incident_id,
             timestamp=_now(),
-            stage="failed",
+            stage=IncidentStatus.error.value,
             type=TimelineEventType.system_event.value,
             title="Root cause agent failed",
-            payload={"error": "agent_error"},
+            payload={"error": "agent_error", "stage": "root_cause",
+                     "detail": str(exc)[:500]},
         ))
         await db.commit()
-        await _broadcast(ws, incident_id, WSEventType.error, {"stage": "root_cause"})
+        await _broadcast(ws, incident_id, WSEventType.error, {
+            "stage": "root_cause",
+            "error": "agent_error",
+            "message": "Root cause agent encountered an error",
+        })
         return
 
     # --- 4. Remediation ---
@@ -317,6 +366,29 @@ async def run_triage_to_remediation(
             options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
             rem_data = {"options": options}
 
+        if not rem_data.get("options") and not rem_data.get("pr"):
+            logger.warning(
+                "Remediation agent proposed no options for %s",
+                incident_id,
+            )
+            await _update_status(
+                db, incident, IncidentStatus.needs_input,
+            )
+            await _save_event(
+                db, incident_id,
+                IncidentStatus.awaiting_approval.value,
+                "No remediation options — needs human input",
+                {"error": "empty_result", "stage": "remediation",
+                 "detail": "Agent proposed no remediation options"},
+            )
+            await db.commit()
+            await _broadcast(ws, incident_id, WSEventType.error, {
+                "stage": "remediation",
+                "error": "empty_result",
+                "message": "Agent could not propose remediation options",
+            })
+            return
+
         await _save_event(
             db, incident_id, IncidentStatus.awaiting_approval.value,
             "Remediation options proposed", rem_data,
@@ -326,19 +398,25 @@ async def run_triage_to_remediation(
             "remediation": rem_data,
         })
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Remediation failed for %s", incident_id)
+        await _update_status(db, incident, IncidentStatus.error)
         db.add(TimelineEventRow(
             id=_evt_id(),
             incident_id=incident_id,
             timestamp=_now(),
-            stage="failed",
+            stage=IncidentStatus.error.value,
             type=TimelineEventType.system_event.value,
             title="Remediation agent failed",
-            payload={"error": "agent_error"},
+            payload={"error": "agent_error", "stage": "remediation",
+                     "detail": str(exc)[:500]},
         ))
         await db.commit()
-        await _broadcast(ws, incident_id, WSEventType.error, {"stage": "remediation"})
+        await _broadcast(ws, incident_id, WSEventType.error, {
+            "stage": "remediation",
+            "error": "agent_error",
+            "message": "Remediation agent encountered an error",
+        })
 
 
 async def run_retro(
