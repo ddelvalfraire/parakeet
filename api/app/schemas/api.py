@@ -36,3 +36,50 @@ class SubmitActionResponse(BaseModel):
 
 class GenerateRetroResponse(BaseModel):
     post_mortem: PostMortem
+
+
+# ---------------------------------------------------------------------------
+# Demo endpoints
+# ---------------------------------------------------------------------------
+
+
+class DemoScenarioResponse(BaseModel):
+    id: str
+    title: str
+    service: str
+    severity: str
+    language: str
+    description: str
+
+
+class ListScenariosResponse(BaseModel):
+    scenarios: list[DemoScenarioResponse]
+
+
+class StartDemoRequest(BaseModel):
+    scenario_id: str
+
+
+class StartDemoResponse(BaseModel):
+    incident: IncidentSummary
+
+
+class ResetDemoResponse(BaseModel):
+    success: bool
+    prs_closed: int
+    branches_deleted: int
+
+
+# ---------------------------------------------------------------------------
+# Additional incident actions
+# ---------------------------------------------------------------------------
+
+
+class MergeFixRequest(BaseModel):
+    approved_by: str = "On-Call Engineer"
+    notes: str | None = None
+
+
+class ResolveManuallyRequest(BaseModel):
+    explanation: str
+    approved_by: str = "On-Call Engineer"

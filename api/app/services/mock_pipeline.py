@@ -8,9 +8,8 @@ Enable via PARAKEET_MOCK_AGENTS=true.
 """
 
 import asyncio
-import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -22,6 +21,7 @@ from app.models.timeline_event import TimelineEventRow
 from app.schemas.domain import IncidentStatus, TimelineEventType
 from app.schemas.ws import WSEvent, WSEventType
 from app.services.ws_manager import ConnectionManager
+from fixtures.demo_scenarios import SCENARIOS, DemoScenario
 
 logger = logging.getLogger(__name__)
 
@@ -144,8 +144,6 @@ def _mock_triage(alert: dict[str, Any]) -> dict[str, Any]:
 
 def _mock_investigation(alert: dict[str, Any], triage: dict[str, Any]) -> dict[str, Any]:
     service = alert.get("service", "unknown-service")
-    metric = alert.get("metric", "error_rate")
-    value = alert.get("value", "N/A")
     ts = alert.get("timestamp", _now())
 
     log_findings = {
@@ -199,7 +197,10 @@ def _mock_remediation(alert: dict[str, Any], _root_cause: dict[str, Any]) -> lis
         {
             "id": "opt-1",
             "title": f"Rollback {service} to previous version",
-            "description": f"Revert {service} to last known good version to restore service immediately.",
+            "description": (
+                f"Revert {service} to last known good version"
+                " to restore service immediately."
+            ),
             "confidence": 0.94,
             "risk_level": "low",
             "estimated_recovery_time": "3-5 minutes",
@@ -296,6 +297,146 @@ def _mock_retro(
 
 
 # ---------------------------------------------------------------------------
+# Demo scenario-aware mocks — used when incident.demo_scenario_id is set
+# ---------------------------------------------------------------------------
+
+_DEMO_DIFFS: dict[str, str] = {
+    "shipping-bug": (
+        "--- a/src/shippingservice/main.go\n"
+        "+++ b/src/shippingservice/main.go\n"
+        "@@ -121,7 +121,7 @@ func (s *server) GetQuote(ctx context.Context, "
+        "in *pb.GetQuoteRequest) (*pb.GetQuoteResponse, error) {\n"
+        " \tlog.Info(\"[GetQuote] received request\")\n"
+        " \tdefer log.Info(\"[GetQuote] completed request\")\n"
+        " \n"
+        "-\tquote := CreateQuoteFromCount(0)\n"
+        "+\tquote := CreateQuoteFromCount(len(in.Items))\n"
+        " \n"
+        " \treturn &pb.GetQuoteResponse{\n"
+        " \t\tCostUsd: &pb.Money{\n"
+    ),
+    "currency-bug": (
+        "--- a/src/currencyservice/server.js\n"
+        "+++ b/src/currencyservice/server.js\n"
+        "@@ -138,6 +138,11 @@ function convert (call, callback) {\n"
+        "   try {\n"
+        "     const request = call.request;\n"
+        "     const from = request.from;\n"
+        "+    if (!data[from.currency_code]) {\n"
+        "+      const err = new Error(`Unsupported currency: ${from.currency_code}`);\n"
+        "+      logger.error(`conversion request failed: ${err}`);\n"
+        "+      callback(err);\n"
+        "+      return;\n"
+        "+    }\n"
+        "     const euros = _carry({\n"
+        "       units: from.units / data[from.currency_code],\n"
+        "       nanos: from.nanos / data[from.currency_code]\n"
+    ),
+    "recommendation-bug": (
+        "--- a/src/recommendationservice/recommendation_server.py\n"
+        "+++ b/src/recommendationservice/recommendation_server.py\n"
+        "@@ -76,6 +76,10 @@ class RecommendationService(demo_pb2_grpc."
+        "RecommendationServiceServicer):\n"
+        "         filtered_products = list(set(product_ids) - set(request.product_ids))\n"
+        "         num_products = len(filtered_products)\n"
+        "+        if num_products == 0:\n"
+        "+            logger.info('[Recv ListRecommendations] no products to recommend')\n"
+        "+            response = demo_pb2.ListRecommendationsResponse()\n"
+        "+            return response\n"
+        "         num_return = min(max_responses, num_products)\n"
+        "         indices = random.sample(range(num_products), num_return)\n"
+    ),
+}
+
+
+def _mock_demo_investigation(scenario: DemoScenario) -> dict[str, Any]:
+    return {
+        "log_findings": {
+            "error_pattern": scenario.logs[1] if len(scenario.logs) > 1 else "Error in service",
+            "first_occurrence": _now(),
+            "frequency": "~80 errors/min",
+            "affected_versions": [f"{scenario.service}@latest"],
+            "last_healthy_version": f"{scenario.service}@previous",
+            "correlated_event": None,
+            "sample_stack_trace": scenario.logs[-2] if len(scenario.logs) > 1 else None,
+        },
+        "affected_services": [
+            {"service": scenario.service, "status": "degraded", "impact": "primary"},
+            {"service": "frontend", "status": "degraded", "impact": "downstream"},
+        ],
+        "estimated_users_affected": "~2,000-5,000 active sessions",
+        "revenue_impact_per_minute": "$500" if scenario.severity == "P1" else "$200",
+    }
+
+
+def _mock_demo_root_cause(scenario: DemoScenario) -> dict[str, Any]:
+    return {
+        "probable_cause": scenario.description,
+        "confidence_score": 0.92,
+        "evidence": [
+            f"Log pattern: {scenario.logs[1]}" if len(scenario.logs) > 1 else "Error logs detected",
+            f"Bug located in {scenario.file_path}",
+            f"Service: {scenario.service} ({scenario.language})",
+        ],
+        "contributing_factors": [
+            "Missing input validation",
+            "No unit test coverage for edge case",
+            "Code review did not catch the issue",
+        ],
+    }
+
+
+def _mock_demo_remediation(scenario: DemoScenario) -> dict[str, Any]:
+    diff = _DEMO_DIFFS.get(scenario.id, "")
+    return {
+        "options": [
+            {
+                "id": "pr-fix",
+                "title": f"Merge PR: Fix {scenario.title}",
+                "description": (
+                    f"A code fix has been identified in {scenario.file_path}. "
+                    f"Review and merge the PR to resolve the {scenario.service} issue."
+                ),
+                "confidence": 0.94,
+                "risk_level": "low",
+                "estimated_recovery_time": "2-3 minutes (merge + deploy)",
+                "steps": [
+                    f"Review the PR diff for {scenario.file_path}",
+                    "Approve and merge the pull request",
+                    "Wait for CI/CD to deploy the fix",
+                    f"Verify {scenario.service} error rate returns to normal",
+                ],
+            },
+            {
+                "id": "rollback-mitigation",
+                "title": f"Rollback {scenario.service} to previous version",
+                "description": (
+                    f"If the code fix cannot be deployed immediately, roll back "
+                    f"{scenario.service} to the last known-good version to restore "
+                    f"service while a permanent fix is prepared."
+                ),
+                "confidence": 0.75,
+                "risk_level": "medium",
+                "estimated_recovery_time": "5-10 minutes",
+                "steps": [
+                    f"Identify the last stable release of {scenario.service}",
+                    f"Roll back {scenario.service} deployment to previous version",
+                    "Monitor error rates and confirm recovery",
+                    "Schedule the code fix for the next deployment window",
+                ],
+            },
+        ],
+        "pr": {
+            "pr_number": 42,
+            "pr_url": "https://github.com/demo/online-boutique/pull/42",
+            "diff": diff,
+            "file_path": scenario.file_path,
+            "branch": scenario.branch_prefix + "-mock",
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Public API — same signatures as pipeline.py
 # ---------------------------------------------------------------------------
 
@@ -304,6 +445,7 @@ async def run_triage_to_remediation(
     db: AsyncSession,
     ws: ConnectionManager,
     incident_id: str,
+    github: Any = None,
 ) -> None:
     """Mock pipeline: triage -> investigation -> root_cause -> remediation."""
     result = await db.execute(
@@ -332,9 +474,16 @@ async def run_triage_to_remediation(
         "triage": triage_data,
     })
 
+    # Check for demo scenario
+    scenario = SCENARIOS.get(incident.demo_scenario_id or "")
+
     # --- 2. Investigation ---
     await asyncio.sleep(STAGE_DELAY)
-    inv_data = _mock_investigation(alert, triage_data)
+    inv_data = (
+        _mock_demo_investigation(scenario)
+        if scenario
+        else _mock_investigation(alert, triage_data)
+    )
     await _update_status(db, incident, IncidentStatus.root_cause)
     await _save_event(
         db, incident_id, IncidentStatus.investigating.value,
@@ -348,7 +497,7 @@ async def run_triage_to_remediation(
 
     # --- 3. Root cause ---
     await asyncio.sleep(STAGE_DELAY)
-    rc_data = _mock_root_cause(alert, inv_data)
+    rc_data = _mock_demo_root_cause(scenario) if scenario else _mock_root_cause(alert, inv_data)
     await _update_status(db, incident, IncidentStatus.awaiting_approval)
     await _save_event(
         db, incident_id, IncidentStatus.root_cause.value,
@@ -362,8 +511,11 @@ async def run_triage_to_remediation(
 
     # --- 4. Remediation ---
     await asyncio.sleep(STAGE_DELAY)
-    options = _mock_remediation(alert, rc_data)
-    rem_data = {"options": options}
+    if scenario:
+        rem_data = _mock_demo_remediation(scenario)
+    else:
+        options = _mock_remediation(alert, rc_data)
+        rem_data = {"options": options}
     await _save_event(
         db, incident_id, IncidentStatus.awaiting_approval.value,
         "Remediation options proposed", rem_data,

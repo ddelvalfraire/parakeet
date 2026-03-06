@@ -11,9 +11,11 @@ from app.models import Base
 # Import models so Base.metadata knows about them
 from app.models.incident import IncidentRow  # noqa: F401
 from app.models.timeline_event import TimelineEventRow  # noqa: F401
+from app.routes.demo import router as demo_router
 from app.routes.incidents import router as incidents_router
 from app.routes.ws import router as ws_router
 from app.seed import seed_db
+from app.services.github_service import GitHubService
 
 
 @asynccontextmanager
@@ -27,7 +29,22 @@ async def lifespan(_app: FastAPI):
         logger.info("Mock agents ENABLED — no LLM calls will be made")
     else:
         logger.info("Using real ADK agents (model=%s)", settings.agent_model)
+
+    # GitHub service for live demo remediation
+    if settings.github_token and settings.demo_repo:
+        _app.state.github = GitHubService(settings.github_token, settings.demo_repo)
+        logger.info("GitHub integration ENABLED (repo=%s)", settings.demo_repo)
+    else:
+        _app.state.github = None
+        logger.info(
+            "GitHub integration disabled — set PARAKEET_GITHUB_TOKEN"
+            " and PARAKEET_DEMO_REPO to enable"
+        )
+
     yield
+
+    if getattr(_app.state, "github", None):
+        await _app.state.github.close()
     await engine.dispose()
 
 
@@ -42,4 +59,5 @@ app.add_middleware(
 )
 
 app.include_router(incidents_router)
+app.include_router(demo_router)
 app.include_router(ws_router)

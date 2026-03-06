@@ -6,6 +6,12 @@ import type {
   SubmitActionRequest,
   SubmitActionResponse,
   GenerateRetroResponse,
+  ListScenariosResponse,
+  StartDemoRequest,
+  StartDemoResponse,
+  ResetDemoResponse,
+  MergeFixRequest,
+  ResolveManuallyRequest,
 } from '@/types/api'
 
 export interface ApiClient {
@@ -14,4 +20,13 @@ export interface ApiClient {
   createIncident(req: CreateIncidentRequest): Promise<CreateIncidentResponse>
   submitAction(incidentId: string, req: SubmitActionRequest): Promise<SubmitActionResponse>
   generateRetro(incidentId: string): Promise<GenerateRetroResponse>
+
+  // Demo
+  listScenarios(): Promise<ListScenariosResponse>
+  startDemo(req: StartDemoRequest): Promise<StartDemoResponse>
+  resetDemo(): Promise<ResetDemoResponse>
+
+  // Additional incident actions
+  mergeFix(incidentId: string, req: MergeFixRequest): Promise<SubmitActionResponse>
+  resolveManually(incidentId: string, req: ResolveManuallyRequest): Promise<SubmitActionResponse>
 }
