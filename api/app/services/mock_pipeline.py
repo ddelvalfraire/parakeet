@@ -16,6 +16,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.incident import IncidentRow
 from app.models.timeline_event import TimelineEventRow
 from app.schemas.domain import IncidentStatus, TimelineEventType
@@ -43,18 +44,46 @@ async def _save_event(
     stage: str,
     title: str,
     payload: dict[str, Any],
+    event_type: TimelineEventType = TimelineEventType.agent_output,
 ) -> TimelineEventRow:
     row = TimelineEventRow(
         id=_evt_id(),
         incident_id=incident_id,
         timestamp=_now(),
         stage=stage,
-        type=TimelineEventType.agent_output.value,
+        type=event_type.value,
         title=title,
         payload=payload,
     )
     db.add(row)
     return row
+
+
+async def _simulate_error(
+    db: AsyncSession,
+    ws: ConnectionManager,
+    incident: IncidentRow,
+    stage: str,
+) -> bool:
+    """If mock_error_stage matches, save an error event and return True."""
+    if settings.mock_error_stage != stage:
+        return False
+    incident_id = incident.id
+    await _update_status(db, incident, IncidentStatus.error)
+    await _save_event(
+        db, incident_id, IncidentStatus.error.value,
+        f"{stage.title()} agent failed (simulated)",
+        {"error": "agent_error", "stage": stage,
+         "detail": "Simulated failure via PARAKEET_MOCK_ERROR_STAGE"},
+        event_type=TimelineEventType.system_event,
+    )
+    await db.commit()
+    await _broadcast(ws, incident_id, WSEventType.error, {
+        "stage": stage,
+        "error": "agent_error",
+        "message": f"{stage.title()} agent failed (simulated)",
+    })
+    return True
 
 
 async def _update_status(
@@ -477,6 +506,8 @@ async def run_triage_to_remediation(
 
     # --- 1. Triage ---
     await asyncio.sleep(STAGE_DELAY)
+    if await _simulate_error(db, ws, incident, "triage"):
+        return
     triage_data = _mock_triage(alert)
     await _update_status(db, incident, IncidentStatus.investigating)
     incident.severity = triage_data["severity"]
@@ -496,6 +527,8 @@ async def run_triage_to_remediation(
 
     # --- 2. Investigation ---
     await asyncio.sleep(STAGE_DELAY)
+    if await _simulate_error(db, ws, incident, "investigation"):
+        return
     inv_data = (
         _mock_demo_investigation(scenario)
         if scenario
@@ -514,6 +547,8 @@ async def run_triage_to_remediation(
 
     # --- 3. Root cause ---
     await asyncio.sleep(STAGE_DELAY)
+    if await _simulate_error(db, ws, incident, "root_cause"):
+        return
     rc_data = _mock_demo_root_cause(scenario) if scenario else _mock_root_cause(alert, inv_data)
     await _update_status(db, incident, IncidentStatus.awaiting_approval)
     await _save_event(
@@ -528,6 +563,8 @@ async def run_triage_to_remediation(
 
     # --- 4. Remediation ---
     await asyncio.sleep(STAGE_DELAY)
+    if await _simulate_error(db, ws, incident, "remediation"):
+        return
     if scenario:
         rem_data = _mock_demo_remediation(scenario)
     else:

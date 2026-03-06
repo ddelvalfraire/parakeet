@@ -8,6 +8,8 @@ class IncidentStatus(StrEnum):
     awaiting_approval = "awaiting_approval"
     resolving = "resolving"
     resolved = "resolved"
+    error = "error"
+    needs_input = "needs_input"
 
 
 class Severity(StrEnum):

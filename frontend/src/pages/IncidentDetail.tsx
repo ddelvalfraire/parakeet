@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ArrowLeft } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CircleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/api'
 import {
@@ -252,6 +252,36 @@ export default function IncidentDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Error / needs-input banner */}
+      {incident.status === 'error' && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
+          <CircleAlert className="size-5 shrink-0 text-red-600 dark:text-red-400" />
+          <div>
+            <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+              Pipeline stopped due to an agent error
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Review the timeline below for details. You may need to retry or
+              resolve this incident manually.
+            </p>
+          </div>
+        </div>
+      )}
+      {incident.status === 'needs_input' && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+          <AlertTriangle className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div>
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              Agent needs human input to continue
+            </p>
+            <p className="text-xs text-muted-foreground">
+              The agent could not complete a stage automatically. Review the
+              timeline and provide the required input.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div className={layout.splitPanel}>

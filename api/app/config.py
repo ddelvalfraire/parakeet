@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     # Use mock agents (deterministic, no LLM calls) for frontend development
     mock_agents: bool = False
 
+    # Simulate an agent failure at a specific stage (mock pipeline only).
+    # Set to "triage", "investigation", "root_cause", or "remediation".
+    mock_error_stage: str = ""
+
     # Similar-incidents embedding search
     embedding_model: str = "all-MiniLM-L6-v2"
     similarity_min_score: float = 0.3
