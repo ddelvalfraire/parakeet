@@ -386,6 +386,8 @@ export default function Dashboard() {
       awaiting_approval: 0,
       resolving: 0,
       resolved: 0,
+      error: 0,
+      needs_input: 0,
     }
     incidents.forEach(i => counts[i.status]++)
     return counts

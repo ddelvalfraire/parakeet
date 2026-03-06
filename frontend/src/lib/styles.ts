@@ -98,6 +98,20 @@ export const statusConfig: Record<IncidentStatus, StatusStyle> = {
     dot: "bg-green-600 dark:bg-green-400",
     animate: false,
   },
+  error: {
+    label: "Error",
+    badge: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+    icon: "text-red-600 dark:text-red-400",
+    dot: "bg-red-600 dark:bg-red-400",
+    animate: false,
+  },
+  needs_input: {
+    label: "Needs Input",
+    badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+    icon: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-600 dark:bg-amber-400",
+    animate: true,
+  },
 }
 
 // ---------------------------------------------------------------------------

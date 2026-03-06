@@ -5,6 +5,8 @@ export type IncidentStatus =
   | 'awaiting_approval'
   | 'resolving'
   | 'resolved'
+  | 'error'
+  | 'needs_input'
 
 export type Severity = 'P1' | 'P2' | 'P3' | 'P4'
 export type RiskLevel = 'low' | 'medium' | 'high'

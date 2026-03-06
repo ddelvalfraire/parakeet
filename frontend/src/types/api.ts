@@ -78,7 +78,7 @@ export interface SimilarIncidentsResponse {
 
 // WebSocket — /ws/incidents/:id
 export interface WSEvent {
-  type: 'stage_change' | 'timeline_append' | 'awaiting_approval' | 'resolved'
+  type: 'stage_change' | 'timeline_append' | 'awaiting_approval' | 'resolved' | 'error'
   incident_id: string
   timestamp: string
   payload: import('./incident').TimelineEvent | { status: IncidentStatus }
