@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -21,6 +22,11 @@ async def lifespan(_app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     async with async_session_factory() as session:
         await seed_db(session)
+    logger = logging.getLogger(__name__)
+    if settings.mock_agents:
+        logger.info("Mock agents ENABLED — no LLM calls will be made")
+    else:
+        logger.info("Using real ADK agents (model=%s)", settings.agent_model)
     yield
     await engine.dispose()
 
