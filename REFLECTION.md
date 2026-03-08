@@ -2,26 +2,26 @@
 
 ## Activity Description
 
-I wanted to build something that tackled a real problem I've seen in production engineering: incident response is slow, repetitive, and stressful. When an alert fires at 3am, you're digging through logs, trying to figure out what broke, and scrambling to fix it. I thought it would be interesting to see how far AI agents could go in automating that workflow.
-
-So I built Parakeet, an incident response system where AI agents handle triage, investigation, root cause analysis, and remediation automatically. The idea is that an alert comes in, agents work through the problem step by step, and then a human approves the fix before anything actually gets deployed. I gave myself about 12 hours to build and deploy it end to end.
+Parakeet is an AI-powered incident response platform built for the Amazon Nova hackathon. It helps engineering teams solve production incidents faster by automating the triage, investigation, root cause analysis, and remediation stages. An alert comes in, AI agents process it through a structured pipeline, and the on-call engineer reviews and approves the proposed fix. The goal is to cut incident response time, not replace the human in the loop.
 
 ## Technical Decisions
 
-I went with Google's Agent Development Kit because it lets you define agents with structured tool calling. Instead of hoping the LLM returns the right JSON, each agent has typed functions like `classify_alert()` or `report_root_cause()` that force it into a schema. This turned out to be really important because the agents feed into each other, and if one stage returns garbage, the whole pipeline falls apart.
+I split the pipeline into five independent agents instead of one monolithic prompt because each stage has a different job and different output schema. This made it easier to debug when a stage produced bad results since I could test and iterate on each agent in isolation. Each agent uses typed tool functions as its output contract, which was a deliberate choice over free-form JSON since downstream stages depend on the structure being correct.
 
-For the backend I used FastAPI since the pipeline runs asynchronously in background tasks while WebSockets push updates to the browser in real time. I picked Amazon Nova 2 Lite as the LLM through OpenRouter, which gave me a single API to work with instead of dealing with AWS Bedrock directly.
+I chose FastAPI over something like Flask because the pipeline needs to run asynchronously in a background task while WebSockets push progress to the browser. Synchronous frameworks would have blocked on LLM calls. For the database, I went with SQLite because it's zero-config and good enough for a hackathon, but in hindsight Postgres would have been better since SQLite doesn't handle concurrent writes from multiple pipeline runs.
 
-On the frontend, React with shadcn/ui got me to a usable interface fast. I also built a mock pipeline mode that returns deterministic responses without calling any LLM, which saved me a lot of money during frontend development.
+I initially built the agent layer on Google's ADK with LiteLLM as a translation layer to OpenRouter. That introduced too many abstraction layers and caused hard-to-debug serialization issues between ADK, LiteLLM, and Amazon Bedrock's tool schema requirements. I stripped both out and rebuilt on LangChain with the OpenAI SDK hitting OpenRouter directly. Fewer moving parts, and the tool calling just worked.
 
-Deployment was honestly the hardest part. Getting Docker Compose working on Coolify meant debugging SQLite file permissions, CORS parsing quirks with pydantic-settings, nginx WebSocket proxying, and figuring out that PyTorch was adding 2GB to my Docker image when I only needed the CPU version.
+I also built a mock pipeline mode that returns canned responses without hitting the LLM, which let me build the entire frontend and API integration without burning credits.
+
+For deployment I used Docker Compose with an nginx reverse proxy on Coolify. I used multi-stage Docker builds and CPU-only PyTorch to keep the image size manageable since the full PyTorch package added 2GB for a feature that only needed CPU inference.
 
 ## Contributions
 
-I worked on this alone. Architecture, backend, frontend, agent prompts, demo scenarios, Docker setup, and deployment were all me. The repo has 129 commits across 26 pull requests.
+Solo project. I handled the architecture, backend API, agent pipeline, prompt engineering, frontend, demo scenarios, Docker setup, and deployment.
 
 ## Quality Assessment
 
-I think the core architecture is solid. Breaking the pipeline into one agent per stage with event sourcing means you can see exactly what each agent decided and why. The mock pipeline was probably my best call since it let me iterate on the UI without burning through API credits.
+The pipeline architecture is solid. Each agent stage produces structured output via tool calling, and every decision is stored as a timeline event so you can trace exactly what happened. The mock pipeline was a good investment for fast frontend iteration.
 
-Where I fell short was deployment stability. I spent a lot of time fighting OpenRouter connection issues and LiteLLM configuration quirks that I could have avoided with better upfront research. If I did this again, I'd set up a simple end-to-end test that calls the real LLM API early on instead of waiting until deployment to discover integration problems. I'd also want to add retry logic for transient API failures and swap SQLite for Postgres since SQLite doesn't handle concurrent writes well.
+The main gap was deployment reliability. My initial choice of ADK + LiteLLM created integration issues that only surfaced in the container environment, not locally. Migrating to LangChain + OpenAI SDK fixed it but cost time I could have spent on features. Next time I would test the full LLM integration end-to-end in the container early instead of building out features first. I would also swap SQLite for Postgres for better concurrency and add retry logic around the LLM calls.

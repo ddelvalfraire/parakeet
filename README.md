@@ -21,7 +21,7 @@ The pipeline runs asynchronously with real-time WebSocket updates, so operators 
 | Layer | Technology |
 |-------|-----------|
 | **Backend** | Python, FastAPI, SQLAlchemy (async), SQLite |
-| **AI Agents** | Google ADK (Agent Development Kit), Amazon Nova 2 Lite via OpenRouter |
+| **AI Agents** | LangChain, OpenAI SDK, Amazon Nova 2 Lite via OpenRouter |
 | **Similarity Search** | Sentence Transformers (all-MiniLM-L6-v2), cosine similarity |
 | **Frontend** | React 19, React Router 7, Tailwind CSS 4, shadcn/ui, Recharts |
 | **Real-time** | WebSocket with auto-reconnect |
@@ -92,7 +92,7 @@ docker compose up --build
 ```
 api/
   app/
-    agents/           # 5 ADK agents with structured tools
+    agents/           # 5 LangChain agents with structured tools
     models/           # SQLAlchemy ORM (incidents, timeline, embeddings)
     routes/           # REST + WebSocket endpoints
     schemas/          # Pydantic request/response models
