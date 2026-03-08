@@ -41,6 +41,7 @@ export interface GenerateRetroResponse {
 // GET /demo/scenarios
 export interface ListScenariosResponse {
   scenarios: DemoScenario[]
+  demo_active: boolean
 }
 
 // POST /demo/start

@@ -38,7 +38,7 @@ def _get_github(request: Request) -> GitHubService | None:
 
 
 @router.get("/scenarios", response_model=ListScenariosResponse)
-async def list_scenarios() -> ListScenariosResponse:
+async def list_scenarios(request: Request) -> ListScenariosResponse:
     scenarios = [
         DemoScenarioResponse(
             id=s.id,
@@ -50,7 +50,10 @@ async def list_scenarios() -> ListScenariosResponse:
         )
         for s in SCENARIOS.values()
     ]
-    return ListScenariosResponse(scenarios=scenarios)
+    return ListScenariosResponse(
+        scenarios=scenarios,
+        demo_active=getattr(request.app.state, "demo_active", False),
+    )
 
 
 @router.post("/start", response_model=StartDemoResponse, status_code=201)
@@ -59,6 +62,9 @@ async def start_demo(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> StartDemoResponse:
+    if getattr(request.app.state, "demo_active", False):
+        raise HTTPException(status_code=409, detail="A demo is already running. Reset before launching another.")
+
     scenario = SCENARIOS.get(body.scenario_id)
     if scenario is None:
         raise HTTPException(status_code=400, detail=f"Unknown scenario: {body.scenario_id}")
@@ -80,6 +86,7 @@ async def start_demo(
         async with async_session_factory() as pipeline_db:
             await run_triage_to_remediation(pipeline_db, ws_manager, incident_id, github=github)
 
+    request.app.state.demo_active = True
     asyncio.create_task(_run_pipeline(summary.id)).add_done_callback(log_task_exception)
     return StartDemoResponse(incident=summary)
 
@@ -110,6 +117,8 @@ async def reset_demo(request: Request) -> ResetDemoResponse:
                 await github.force_update_branch("main", settings.demo_base_sha)
         except Exception:
             logger.exception("Demo reset encountered errors")
+
+    request.app.state.demo_active = False
 
     return ResetDemoResponse(
         success=True,

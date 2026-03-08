@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FlaskConical, Play, RotateCcw } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { DemoScenario } from '@/types'
 
@@ -27,12 +28,13 @@ export default function DemoLauncher() {
   const [loading, setLoading] = useState(true)
   const [launching, setLaunching] = useState<string | null>(null)
   const [resetting, setResetting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [demoActive, setDemoActive] = useState(false)
 
   const fetchScenarios = useCallback(async () => {
     try {
       const res = await api.listScenarios()
       setScenarios(res.scenarios)
+      setDemoActive(res.demo_active)
     } catch {
       // Silently fail — demo features are optional
     } finally {
@@ -46,12 +48,22 @@ export default function DemoLauncher() {
 
   async function handleLaunch(scenarioId: string) {
     setLaunching(scenarioId)
-    setError(null)
     try {
       const res = await api.startDemo({ scenario_id: scenarioId })
+      setDemoActive(true)
       navigate(`/incident/${res.incident.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to launch demo')
+      const raw = err instanceof Error ? err.message : 'Failed to launch demo'
+      // Parse FastAPI error detail if present
+      let message = raw
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed.detail) message = parsed.detail
+      } catch {
+        // not JSON, use raw
+      }
+      toast.error(message)
+      setDemoActive(true)
       setLaunching(null)
     }
   }
@@ -60,8 +72,10 @@ export default function DemoLauncher() {
     setResetting(true)
     try {
       await api.resetDemo()
+      setDemoActive(false)
+      toast.success('Demo reset — ready to launch again')
     } catch {
-      // ignore
+      toast.error('Failed to reset demo')
     } finally {
       setResetting(false)
     }
@@ -91,31 +105,36 @@ export default function DemoLauncher() {
         <div className="flex items-center gap-2">
           <FlaskConical className="h-4 w-4 text-purple-600 dark:text-purple-400" />
           <span className="text-sm font-semibold">Live Demo</span>
-          <span className="text-xs text-muted-foreground">
-            Launch a scenario to see AI-powered remediation in action
-          </span>
+          {demoActive ? (
+            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              Reset required before launching another demo
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Launch a scenario to see AI-powered remediation in action
+            </span>
+          )}
         </div>
         <Button
-          variant="ghost"
+          variant={demoActive ? 'default' : 'ghost'}
           size="sm"
           onClick={handleReset}
           disabled={resetting}
-          className="text-xs"
+          className={cn('text-xs', demoActive && 'bg-amber-600 hover:bg-amber-500 text-white')}
         >
           <RotateCcw className={cn('h-3 w-3', resetting && 'animate-spin')} />
-          Reset
+          Reset Demo
         </Button>
       </div>
-
-      {error && (
-        <p className="text-xs text-destructive mb-2">{error}</p>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {scenarios.map(scenario => (
           <div
             key={scenario.id}
-            className="rounded-lg border bg-card p-3 space-y-2 hover:border-foreground/20 transition-colors"
+            className={cn(
+              'rounded-lg border bg-card p-3 space-y-2 transition-colors',
+              demoActive ? 'opacity-50' : 'hover:border-foreground/20',
+            )}
           >
             <div className="flex items-center gap-1.5 flex-wrap">
               <Badge className={cn('text-[10px] px-1.5 py-0', SEV_COLORS[scenario.severity])}>
@@ -135,7 +154,7 @@ export default function DemoLauncher() {
               size="sm"
               variant="outline"
               className="w-full h-7 text-xs"
-              disabled={launching !== null}
+              disabled={launching !== null || demoActive}
               onClick={() => handleLaunch(scenario.id)}
             >
               {launching === scenario.id ? (

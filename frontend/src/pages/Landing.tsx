@@ -340,7 +340,7 @@ export default function Landing() {
               How it works
             </a>
             <Button asChild size="sm" className="bg-emerald-600 text-white hover:bg-emerald-500">
-              <Link to="/dashboard">Open Dashboard</Link>
+              <Link to="/dashboard">Try the Demo</Link>
             </Button>
           </div>
         </div>
@@ -382,7 +382,7 @@ export default function Landing() {
               <div className="mt-10 flex flex-wrap items-center gap-4">
                 <Button asChild size="lg" className="bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 hover:shadow-emerald-400/20">
                   <Link to="/dashboard">
-                    Open Dashboard
+                    Try the Demo
                     <ArrowRight className="size-4" />
                   </Link>
                 </Button>
@@ -580,7 +580,7 @@ export default function Landing() {
             <div className="mt-10">
               <Button asChild size="lg" className="bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 hover:shadow-emerald-400/20">
                 <Link to="/dashboard">
-                  Open Dashboard
+                  Try the Demo
                   <ArrowRight className="size-4" />
                 </Link>
               </Button>
