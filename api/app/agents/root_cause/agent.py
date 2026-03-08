@@ -1,10 +1,10 @@
 """Root cause agent — determines the probable cause of an incident from investigation data."""
 
-from google.adk.agents import Agent
+from langchain_core.tools import StructuredTool
 
 from app.agents.policies import severity_policy_as_prompt
+from app.agents.runner import AgentConfig
 from app.agents.tools.similar_incidents import get_similar_past_incidents
-from app.config import settings
 
 
 def report_root_cause(
@@ -95,10 +95,11 @@ adjust your confidence score upward — recurring patterns are strong evidence.
   no rate limiting) — these feed into prevention recommendations later.
 """
 
-root_agent = Agent(
+root_agent = AgentConfig(
     name="root_cause",
-    model=settings.adk_model,
-    description="Determines the probable root cause of an incident from investigation findings.",
     instruction=ROOT_CAUSE_INSTRUCTION,
-    tools=[report_root_cause, get_similar_past_incidents],
+    tools=[
+        StructuredTool.from_function(report_root_cause),
+        StructuredTool.from_function(coroutine=get_similar_past_incidents),
+    ],
 )

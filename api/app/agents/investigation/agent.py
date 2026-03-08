@@ -2,11 +2,11 @@
 
 from typing import Literal
 
-from google.adk.agents import Agent
+from langchain_core.tools import StructuredTool
 
 from app.agents.policies import severity_policy_as_prompt
+from app.agents.runner import AgentConfig
 from app.agents.tools.similar_incidents import get_similar_past_incidents
-from app.config import settings
 
 
 def report_log_findings(
@@ -141,18 +141,13 @@ narrow down faster.
   hosted in the affected infrastructure as affected services.
 """
 
-root_agent = Agent(
+root_agent = AgentConfig(
     name="investigation",
-    model=settings.adk_model,
-    description=(
-        "Investigates incidents by analysing logs,"
-        " mapping blast radius, and estimating impact."
-    ),
     instruction=INVESTIGATION_INSTRUCTION,
     tools=[
-        report_log_findings,
-        report_affected_service,
-        report_impact_summary,
-        get_similar_past_incidents,
+        StructuredTool.from_function(report_log_findings),
+        StructuredTool.from_function(report_affected_service),
+        StructuredTool.from_function(report_impact_summary),
+        StructuredTool.from_function(coroutine=get_similar_past_incidents),
     ],
 )

@@ -1,49 +1,42 @@
 """Triage agent — classifies incoming alerts into severity, category, and tags."""
 
-from google.adk.agents import Agent
+from langchain_core.tools import StructuredTool
 
 from app.agents.policies import severity_policy_as_prompt
-from app.config import settings
+from app.agents.runner import AgentConfig
 
 
 def classify_alert(
-    source: str,
-    service: str,
-    environment: str,
-    metric: str,
-    value: str,
-    threshold: str,
-    message: str,
+    severity: str,
+    category: str,
+    tags: list[str],
+    is_duplicate: bool,
+    summary: str,
 ) -> dict:
     """Classify an incoming monitoring alert.
 
-    Analyse the alert details and return a triage classification with:
-    - severity: one of P1, P2, P3, P4
-    - category: a short label like "latency", "error_rate", "availability", "resource"
-    - tags: a list of relevant tags for filtering
-    - is_duplicate: whether this looks like a duplicate of a recent incident
-    - summary: a concise enriched summary of the incident
+    Analyse the alert and call this tool with your triage classification.
 
     Args:
-        source: The monitoring system that fired the alert (e.g. CloudWatch, Datadog).
-        service: Name of the affected service.
-        environment: Deployment environment (e.g. production, staging).
-        metric: The metric that breached its threshold.
-        value: The current metric value.
-        threshold: The threshold that was breached.
-        message: Human-readable alert message.
+        severity: Severity level — one of "P1", "P2", "P3", "P4".
+        category: Category label — one of "latency", "error_rate", "availability",
+            "resource", "security", "data_integrity", "deployment".
+        tags: 3-6 relevant keywords for filtering (service name, environment,
+            metric type, suspected root cause).
+        is_duplicate: True if this matches an already-active incident on the
+            same service with the same failure mode.
+        summary: A concise 1-2 sentence summary an on-call engineer can scan
+            in seconds. Include impact scope and suspected cause.
 
     Returns:
-        A dict with keys: severity, category, tags, is_duplicate, summary.
+        The triage classification dict.
     """
-    # The LLM will call this tool and populate the return value.
-    # This function acts as the structured output schema for the agent.
     return {
-        "severity": "P3",
-        "category": "uncategorized",
-        "tags": [],
-        "is_duplicate": False,
-        "summary": message,
+        "severity": severity,
+        "category": category,
+        "tags": tags,
+        "is_duplicate": is_duplicate,
+        "summary": summary,
     }
 
 
@@ -99,10 +92,8 @@ When evidence is insufficient to distinguish between severities, round UP
   production with ANY degradation should be at least P2.
 """
 
-root_agent = Agent(
+root_agent = AgentConfig(
     name="triage",
-    model=settings.adk_model,
-    description="Classifies incoming monitoring alerts by severity, category, and tags.",
     instruction=TRIAGE_INSTRUCTION,
-    tools=[classify_alert],
+    tools=[StructuredTool.from_function(classify_alert)],
 )

@@ -1,4 +1,4 @@
-"""Pipeline service — chains ADK agents to process an incident end-to-end.
+"""Pipeline service — chains agents to process an incident end-to-end.
 
 Flow:
   alert → triage → investigation → root_cause → remediation (→ awaiting_approval)
@@ -11,9 +11,6 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from google.adk.agents import Agent
-from google.adk.runners import InMemoryRunner
-from google.genai import types
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +23,7 @@ from app.agents.remediation.agent import (
 )
 from app.agents.retro.agent import root_agent as retro_agent
 from app.agents.root_cause.agent import root_agent as root_cause_agent
+from app.agents.runner import AgentConfig, run_agent
 from app.agents.triage.agent import root_agent as triage_agent
 from app.models.incident import IncidentRow
 from app.models.timeline_event import TimelineEventRow
@@ -37,8 +35,6 @@ from fixtures.demo_scenarios import SCENARIOS
 
 logger = logging.getLogger(__name__)
 
-APP_NAME = "parakeet"
-
 
 def _now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -48,39 +44,9 @@ def _evt_id() -> str:
     return f"evt-{uuid4().hex[:6]}"
 
 
-def _extract_tool_calls(events: list) -> list[dict[str, Any]]:
-    """Extract tool call names and args from ADK events."""
-    calls: list[dict[str, Any]] = []
-    for event in events:
-        if not event.content or not event.content.parts:
-            continue
-        for part in event.content.parts:
-            fc = part.function_call
-            if fc is not None:
-                calls.append({"name": fc.name, "args": dict(fc.args)})
-    return calls
-
-
-async def _run_agent(agent: Agent, message: str, session_id: str) -> list[dict[str, Any]]:
-    """Run an ADK agent and return its tool calls."""
-    runner = InMemoryRunner(agent=agent, app_name=APP_NAME)
-    # ADK requires a session to exist before run_async; use a unique ID per
-    # agent call so sessions don't collide across pipeline stages.
-    agent_session_id = f"{session_id}-{agent.name}"
-    await runner.session_service.create_session(
-        app_name=APP_NAME, user_id="pipeline", session_id=agent_session_id,
-    )
-    events = []
-    async for event in runner.run_async(
-        user_id="pipeline",
-        session_id=agent_session_id,
-        new_message=types.Content(
-            parts=[types.Part(text=message)],
-            role="user",
-        ),
-    ):
-        events.append(event)
-    return _extract_tool_calls(events)
+async def _run_agent(agent: AgentConfig, message: str, session_id: str) -> list[dict[str, Any]]:
+    """Run a LangChain agent and return its tool calls."""
+    return await run_agent(agent, message)
 
 
 async def _save_event(

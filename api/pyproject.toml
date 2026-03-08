@@ -10,8 +10,9 @@ fastapi = {extras = ["standard"], version = "^0.115"}
 sqlalchemy = {extras = ["asyncio"], version = "^2.0"}
 aiosqlite = "^0.20"
 pydantic-settings = "^2.7"
-google-adk = {extras = ["eval"], version = "^1.0"}
-litellm = "^1.0"
+openai = "^1.0"
+langchain = "^0.3"
+langchain-openai = "^0.3"
 pyyaml = "^6.0"
 sentence-transformers = "^3.0"
 numpy = "^2.0"
