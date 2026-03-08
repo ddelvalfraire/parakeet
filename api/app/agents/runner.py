@@ -8,7 +8,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
-from openai import APIError, APIConnectionError, APITimeoutError, RateLimitError
+from openai import APIConnectionError, APIError, APITimeoutError, RateLimitError
 
 from app.config import settings
 

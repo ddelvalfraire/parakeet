@@ -63,7 +63,10 @@ async def start_demo(
     db: AsyncSession = Depends(get_db),
 ) -> StartDemoResponse:
     if getattr(request.app.state, "demo_active", False):
-        raise HTTPException(status_code=409, detail="A demo is already running. Reset before launching another.")
+        raise HTTPException(
+            status_code=409,
+            detail="A demo is already running. Reset before launching another.",
+        )
 
     scenario = SCENARIOS.get(body.scenario_id)
     if scenario is None:
