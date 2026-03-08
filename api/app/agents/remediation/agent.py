@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Literal
 
 from langchain_core.tools import StructuredTool
 
+from app.agents.callbacks import patch_empty_tool_descriptions
 from app.agents.policies import severity_policy_as_prompt
 from app.agents.runner import AgentConfig
 
@@ -362,4 +363,5 @@ def create_demo_remediation_agent(
             StructuredTool.from_function(open_fix_pr),
             StructuredTool.from_function(propose_remediation),
         ],
+        before_model_callback=patch_empty_tool_descriptions,
     )
