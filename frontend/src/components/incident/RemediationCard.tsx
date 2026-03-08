@@ -280,6 +280,20 @@ export default function RemediationCard({
             </div>
           )
         })}
+
+        {/* Resolve Manually — always available when not approved */}
+        {onResolveManually && !approved && !hasPR && (
+          <div className="pt-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setManualDialogOpen(true)}
+            >
+              <Wrench className="h-3.5 w-3.5 mr-1" />
+              Resolve Manually
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Standard approval dialog (non-PR flow) */}
