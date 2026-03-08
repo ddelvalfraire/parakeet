@@ -4,6 +4,7 @@ from typing import Literal
 
 from google.adk.agents import Agent
 
+from app.agents.callbacks import patch_empty_tool_descriptions
 from app.agents.policies import severity_policy_as_prompt
 from app.config import settings
 
@@ -176,4 +177,5 @@ root_agent = Agent(
     description="Generates a post-mortem report from a resolved incident.",
     instruction=RETRO_INSTRUCTION,
     tools=[write_post_mortem],
+    before_model_callback=patch_empty_tool_descriptions,
 )

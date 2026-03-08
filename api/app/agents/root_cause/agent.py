@@ -2,6 +2,7 @@
 
 from google.adk.agents import Agent
 
+from app.agents.callbacks import patch_empty_tool_descriptions
 from app.agents.policies import severity_policy_as_prompt
 from app.agents.tools.similar_incidents import get_similar_past_incidents
 from app.config import settings
@@ -101,4 +102,5 @@ root_agent = Agent(
     description="Determines the probable root cause of an incident from investigation findings.",
     instruction=ROOT_CAUSE_INSTRUCTION,
     tools=[report_root_cause, get_similar_past_incidents],
+    before_model_callback=patch_empty_tool_descriptions,
 )

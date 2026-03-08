@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Literal
 
 from google.adk.agents import Agent
 
+from app.agents.callbacks import patch_empty_tool_descriptions
 from app.agents.policies import severity_policy_as_prompt
 from app.config import settings
 
@@ -145,6 +146,7 @@ root_agent = Agent(
     description="Proposes ranked remediation options for an incident based on root cause analysis.",
     instruction=REMEDIATION_INSTRUCTION,
     tools=[propose_remediation],
+    before_model_callback=patch_empty_tool_descriptions,
 )
 
 
@@ -377,4 +379,5 @@ def create_demo_remediation_agent(
             open_fix_pr,
             propose_remediation,
         ],
+        before_model_callback=patch_empty_tool_descriptions,
     )
