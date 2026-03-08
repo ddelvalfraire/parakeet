@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.investigation.agent import root_agent as investigation_agent
 from app.agents.remediation.agent import (
-    create_demo_remediation_agent,
+    create_demo_remediation_agents,
 )
 from app.agents.remediation.agent import (
     root_agent as remediation_agent,
@@ -140,7 +140,10 @@ async def run_triage_to_remediation(
         alert_msg = _build_alert_message(alert)
         triage_calls = await _run_agent(triage_agent, alert_msg, session_id)
         triage_data = next(
-            (c["args"] for c in triage_calls if c["name"] == "classify_alert"), None
+            (c["result"] for c in triage_calls
+             if c["name"] == "classify_alert"
+             and isinstance(c.get("result"), dict)),
+            None,
         )
 
         if triage_data:
@@ -204,11 +207,21 @@ async def run_triage_to_remediation(
         inv_calls = await _run_agent(investigation_agent, inv_msg, session_id)
 
         log_findings = next(
-            (c["args"] for c in inv_calls if c["name"] == "report_log_findings"), None
+            (c["result"] for c in inv_calls
+             if c["name"] == "report_log_findings"
+             and isinstance(c.get("result"), dict)),
+            None,
         )
-        affected = [c["args"] for c in inv_calls if c["name"] == "report_affected_service"]
+        affected = [
+            c["result"] for c in inv_calls
+            if c["name"] == "report_affected_service"
+            and isinstance(c.get("result"), dict)
+        ]
         impact = next(
-            (c["args"] for c in inv_calls if c["name"] == "report_impact_summary"), None
+            (c["result"] for c in inv_calls
+             if c["name"] == "report_impact_summary"
+             and isinstance(c.get("result"), dict)),
+            None,
         )
 
         inv_data = {
@@ -256,7 +269,10 @@ async def run_triage_to_remediation(
         rc_msg = "\n\n".join(context_parts)
         rc_calls = await _run_agent(root_cause_agent, rc_msg, session_id)
         rc_data = next(
-            (c["args"] for c in rc_calls if c["name"] == "report_root_cause"), None
+            (c["result"] for c in rc_calls
+             if c["name"] == "report_root_cause"
+             and isinstance(c.get("result"), dict)),
+            None,
         )
 
         if rc_data:
@@ -316,23 +332,78 @@ async def run_triage_to_remediation(
     try:
         scenario = SCENARIOS.get(incident.demo_scenario_id or "")
         if scenario and github:
-            # Demo path: agent reads repo, opens PR
-            demo_agent = create_demo_remediation_agent(github, scenario, incident_id)
-            rem_msg = "\n\n".join(context_parts) + "\n\nService logs:\n" + "\n".join(scenario.logs)
-            rem_calls = await _run_agent(demo_agent, rem_msg, session_id)
-
-            pr_data = next(
-                (c["result"] for c in rem_calls if c["name"] == "open_fix_pr" and "result" in c), None
+            # GitHub path: explorer finds the bug, fixer opens a PR
+            explorer, fixer = create_demo_remediation_agents(
+                github, scenario, incident_id,
             )
-            options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
-            rem_data: dict[str, Any] = {"options": options}
-            if pr_data:
-                rem_data["pr"] = pr_data
+
+            # Phase 1 — Explorer: search repo, read code, report findings
+            explorer_msg = (
+                "\n\n".join(context_parts)
+                + "\n\nService logs:\n" + "\n".join(scenario.logs)
+            )
+            explorer_calls = await _run_agent(explorer, explorer_msg, session_id)
+            exploration = next(
+                (c["result"] for c in explorer_calls
+                 if c["name"] == "report_exploration"
+                 and isinstance(c.get("result"), dict)
+                 and c["result"].get("file_path")),
+                None,
+            )
+
+            if exploration:
+                # Phase 2 — Fixer: open PR + propose remediation options
+                fixer_msg = (
+                    "\n\n".join(context_parts)
+                    + f"\n\n## Code Exploration Results\n"
+                    + f"File: {exploration['file_path']}\n"
+                    + f"Bug location: {exploration['bug_location']}\n"
+                    + f"Bug analysis: {exploration['bug_analysis']}\n"
+                    + f"Suggested fix: {exploration['suggested_fix']}\n"
+                    + f"\n### Full file content:\n```\n{exploration['file_content']}\n```\n"
+                    + "\n\nService logs:\n" + "\n".join(scenario.logs)
+                )
+                fixer_calls = await _run_agent(fixer, fixer_msg, session_id)
+
+                pr_data = next(
+                    (c["result"] for c in fixer_calls
+                     if c["name"] == "open_fix_pr"
+                     and isinstance(c.get("result"), dict)
+                     and c["result"].get("pr_url")),
+                    None,
+                )
+                options = [
+                    c["result"] for c in fixer_calls
+                    if c["name"] == "propose_remediation"
+                    and isinstance(c.get("result"), dict)
+                ]
+                rem_data: dict[str, Any] = {"options": options}
+                if pr_data:
+                    rem_data["pr"] = pr_data
+            else:
+                # Explorer couldn't find a code-level bug — fall back to
+                # standard remediation for generic options (no PR).
+                logger.info(
+                    "Explorer found no code bug for %s, falling back to standard remediation",
+                    incident_id,
+                )
+                rem_msg = "\n\n".join(context_parts)
+                rem_calls = await _run_agent(remediation_agent, rem_msg, session_id)
+                options = [
+                    c["result"] for c in rem_calls
+                    if c["name"] == "propose_remediation"
+                    and isinstance(c.get("result"), dict)
+                ]
+                rem_data = {"options": options}
         else:
             # Standard path: generic remediation options
             rem_msg = "\n\n".join(context_parts)
             rem_calls = await _run_agent(remediation_agent, rem_msg, session_id)
-            options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
+            options = [
+                c["result"] for c in rem_calls
+                if c["name"] == "propose_remediation"
+                and isinstance(c.get("result"), dict)
+            ]
             rem_data = {"options": options}
 
         if not rem_data.get("options") and not rem_data.get("pr"):
@@ -418,18 +489,12 @@ async def run_retro(
 
     retro_msg = "\n".join(context_lines)
     retro_calls = await _run_agent(retro_agent, retro_msg, incident_id)
-    retro_args = next(
-        (c["args"] for c in retro_calls if c["name"] == "write_post_mortem"), None
+    retro_data = next(
+        (c["result"] for c in retro_calls
+         if c["name"] == "write_post_mortem"
+         and isinstance(c.get("result"), dict)),
+        None,
     )
-
-    # Restructure flat tool args into the nested PostMortem shape
-    retro_data: dict[str, Any] | None = None
-    if retro_args:
-        retro_data = dict(retro_args)
-        retro_data["impact"] = {
-            "users_affected": retro_data.pop("users_affected", "unknown"),
-            "services_degraded": retro_data.pop("services_degraded", []),
-        }
 
     if retro_data:
         await _update_status(
