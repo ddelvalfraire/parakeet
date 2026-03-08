@@ -41,6 +41,7 @@ export default function TimelineFeed({
     const remEvent = events.find((e) => e.stage === 'awaiting_approval')
     if (!remEvent) return new Map<string, string>()
     const options = (remEvent.payload as RemediationResult).options
+    if (!options) return new Map<string, string>()
     return new Map(options.map((o) => [o.id, o.title]))
   }, [events])
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Literal
 
-from langchain_core.tools import StructuredTool
+from langchain_core.tools import StructuredTool, tool
 
 from app.agents.policies import severity_policy_as_prompt
 from app.agents.runner import AgentConfig
@@ -214,6 +214,7 @@ def create_demo_remediation_agent(
     # Stash file metadata from read_repo_file for use in open_fix_pr
     _file_cache: dict[str, dict] = {}
 
+    @tool
     async def list_repo_directory(path: str = "") -> list[dict]:
         """List files and directories at a path in the demo GitHub repository.
 
@@ -231,6 +232,7 @@ def create_demo_remediation_agent(
         """
         return await github.list_directory(path)
 
+    @tool
     async def search_repo_code(query: str) -> list[dict]:
         """Search for code in the repository by keyword, function name, or error string.
 
@@ -247,6 +249,7 @@ def create_demo_remediation_agent(
         """
         return await github.search_code(query)
 
+    @tool
     async def read_repo_file(file_path: str, start_line: int = 0, end_line: int = 0) -> dict:
         """Read a file (or a line range) from the demo GitHub repository.
 
@@ -293,6 +296,7 @@ def create_demo_remediation_agent(
             "total_lines": total_lines,
         }
 
+    @tool
     async def open_fix_pr(
         file_path: str,
         fixed_content: str,
@@ -349,10 +353,10 @@ def create_demo_remediation_agent(
         name="remediation-demo",
         instruction=REMEDIATION_INSTRUCTION + DEMO_INSTRUCTION_ADDON,
         tools=[
-            StructuredTool.from_function(coroutine=search_repo_code),
-            StructuredTool.from_function(coroutine=list_repo_directory),
-            StructuredTool.from_function(coroutine=read_repo_file),
-            StructuredTool.from_function(coroutine=open_fix_pr),
+            search_repo_code,
+            list_repo_directory,
+            read_repo_file,
+            open_fix_pr,
             StructuredTool.from_function(propose_remediation),
         ],
     )

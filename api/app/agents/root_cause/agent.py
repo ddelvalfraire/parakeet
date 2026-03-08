@@ -100,6 +100,6 @@ root_agent = AgentConfig(
     instruction=ROOT_CAUSE_INSTRUCTION,
     tools=[
         StructuredTool.from_function(report_root_cause),
-        StructuredTool.from_function(coroutine=get_similar_past_incidents),
+        get_similar_past_incidents,
     ],
 )
