@@ -2,10 +2,10 @@
 
 from typing import Literal
 
-from google.adk.agents import Agent
+from langchain_core.tools import StructuredTool
 
 from app.agents.policies import severity_policy_as_prompt
-from app.config import settings
+from app.agents.runner import AgentConfig
 
 
 def write_post_mortem(
@@ -170,10 +170,8 @@ For P3/P4 incidents, the retro should still be thorough but:
 - Duration should be calculated from first alert to full resolution.
 """
 
-root_agent = Agent(
+root_agent = AgentConfig(
     name="retro",
-    model=settings.adk_model,
-    description="Generates a post-mortem report from a resolved incident.",
     instruction=RETRO_INSTRUCTION,
-    tools=[write_post_mortem],
+    tools=[StructuredTool.from_function(write_post_mortem)],
 )
