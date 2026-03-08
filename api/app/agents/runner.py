@@ -18,6 +18,16 @@ MAX_ITERATIONS = 10
 LLM_RETRIES = 3
 LLM_RETRY_BASE_DELAY = 2  # seconds
 
+# Tools that produce final output (vs. exploratory tools like search/read).
+# If the agent stops without calling any of these, it gets one nudge.
+_OUTPUT_TOOLS = {
+    "propose_remediation", "open_fix_pr", "report_exploration",
+    "classify_alert",
+    "report_log_findings", "report_affected_service", "report_impact_summary",
+    "report_root_cause",
+    "write_post_mortem",
+}
+
 
 @dataclass
 class AgentConfig:
@@ -48,6 +58,7 @@ async def run_agent(agent: AgentConfig, message: str) -> list[dict[str, Any]]:
     all_tool_calls: list[dict[str, Any]] = []
     seen_calls: set[str] = set()
     tools_by_name = {t.name: t for t in agent.tools}
+    _nudged = False
 
     logger.info(
         "Agent %s starting — tools: %s",
@@ -77,6 +88,22 @@ async def run_agent(agent: AgentConfig, message: str) -> list[dict[str, Any]]:
                 "Agent %s iter %d — no tool calls, text: %s",
                 agent.name, iteration, text_preview,
             )
+            # Nudge: if the agent has done work (read files, searched) but
+            # never called any "output" tools, remind it to use its tools.
+            called_names = {c["name"] for c in all_tool_calls}
+            output_tools = called_names & _OUTPUT_TOOLS
+            if all_tool_calls and not output_tools and not _nudged:
+                _nudged = True
+                logger.info("Agent %s nudged — has calls but no output tools", agent.name)
+                messages.append(HumanMessage(
+                    content=(
+                        "You explored the code but did not call any output tools. "
+                        "You MUST call your output tools (e.g. propose_remediation, "
+                        "open_fix_pr, classify_alert, report_root_cause, etc.) with "
+                        "your findings. Do not respond with only text."
+                    ),
+                ))
+                continue
             break
 
         # Detect if all tool calls this round are duplicates of previous calls.

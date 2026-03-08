@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.investigation.agent import root_agent as investigation_agent
 from app.agents.remediation.agent import (
-    create_demo_remediation_agent,
+    create_demo_remediation_agents,
 )
 from app.agents.remediation.agent import (
     root_agent as remediation_agent,
@@ -332,26 +332,69 @@ async def run_triage_to_remediation(
     try:
         scenario = SCENARIOS.get(incident.demo_scenario_id or "")
         if scenario and github:
-            # Demo path: agent reads repo, opens PR
-            demo_agent = create_demo_remediation_agent(github, scenario, incident_id)
-            rem_msg = "\n\n".join(context_parts) + "\n\nService logs:\n" + "\n".join(scenario.logs)
-            rem_calls = await _run_agent(demo_agent, rem_msg, session_id)
+            # GitHub path: explorer finds the bug, fixer opens a PR
+            explorer, fixer = create_demo_remediation_agents(
+                github, scenario, incident_id,
+            )
 
-            pr_data = next(
-                (c["result"] for c in rem_calls
-                 if c["name"] == "open_fix_pr"
+            # Phase 1 — Explorer: search repo, read code, report findings
+            explorer_msg = (
+                "\n\n".join(context_parts)
+                + "\n\nService logs:\n" + "\n".join(scenario.logs)
+            )
+            explorer_calls = await _run_agent(explorer, explorer_msg, session_id)
+            exploration = next(
+                (c["result"] for c in explorer_calls
+                 if c["name"] == "report_exploration"
                  and isinstance(c.get("result"), dict)
-                 and c["result"].get("pr_url")),
+                 and c["result"].get("file_path")),
                 None,
             )
-            options = [
-                c["result"] for c in rem_calls
-                if c["name"] == "propose_remediation"
-                and isinstance(c.get("result"), dict)
-            ]
-            rem_data: dict[str, Any] = {"options": options}
-            if pr_data:
-                rem_data["pr"] = pr_data
+
+            if exploration:
+                # Phase 2 — Fixer: open PR + propose remediation options
+                fixer_msg = (
+                    "\n\n".join(context_parts)
+                    + f"\n\n## Code Exploration Results\n"
+                    + f"File: {exploration['file_path']}\n"
+                    + f"Bug location: {exploration['bug_location']}\n"
+                    + f"Bug analysis: {exploration['bug_analysis']}\n"
+                    + f"Suggested fix: {exploration['suggested_fix']}\n"
+                    + f"\n### Full file content:\n```\n{exploration['file_content']}\n```\n"
+                    + "\n\nService logs:\n" + "\n".join(scenario.logs)
+                )
+                fixer_calls = await _run_agent(fixer, fixer_msg, session_id)
+
+                pr_data = next(
+                    (c["result"] for c in fixer_calls
+                     if c["name"] == "open_fix_pr"
+                     and isinstance(c.get("result"), dict)
+                     and c["result"].get("pr_url")),
+                    None,
+                )
+                options = [
+                    c["result"] for c in fixer_calls
+                    if c["name"] == "propose_remediation"
+                    and isinstance(c.get("result"), dict)
+                ]
+                rem_data: dict[str, Any] = {"options": options}
+                if pr_data:
+                    rem_data["pr"] = pr_data
+            else:
+                # Explorer couldn't find a code-level bug — fall back to
+                # standard remediation for generic options (no PR).
+                logger.info(
+                    "Explorer found no code bug for %s, falling back to standard remediation",
+                    incident_id,
+                )
+                rem_msg = "\n\n".join(context_parts)
+                rem_calls = await _run_agent(remediation_agent, rem_msg, session_id)
+                options = [
+                    c["result"] for c in rem_calls
+                    if c["name"] == "propose_remediation"
+                    and isinstance(c.get("result"), dict)
+                ]
+                rem_data = {"options": options}
         else:
             # Standard path: generic remediation options
             rem_msg = "\n\n".join(context_parts)
