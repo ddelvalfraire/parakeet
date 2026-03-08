@@ -1,8 +1,4 @@
-"""Triage agent — classifies incoming alerts into severity, category, and tags.
-
-Uses Google ADK with Gemini for development.
-Production will swap to Amazon Nova 2.
-"""
+"""Triage agent — classifies incoming alerts into severity, category, and tags."""
 
 from google.adk.agents import Agent
 

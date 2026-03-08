@@ -1,8 +1,4 @@
-"""Investigation agent — analyses logs, blast radius, and impact from a triage result.
-
-Uses Google ADK with Gemini for development.
-Production will swap to Amazon Nova 2.
-"""
+"""Investigation agent — analyses logs, blast radius, and impact from a triage result."""
 
 from typing import Literal
 

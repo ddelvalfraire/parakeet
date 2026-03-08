@@ -1,8 +1,4 @@
-"""Remediation agent — proposes ranked remediation options from a root cause analysis.
-
-Uses Google ADK with Gemini for development.
-Production will swap to Amazon Nova 2.
-"""
+"""Remediation agent — proposes ranked remediation options from a root cause analysis."""
 
 from __future__ import annotations
 

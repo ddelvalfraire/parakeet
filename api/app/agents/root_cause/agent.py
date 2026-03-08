@@ -1,8 +1,4 @@
-"""Root cause agent — determines the probable cause of an incident from investigation data.
-
-Uses Google ADK with Gemini for development.
-Production will swap to Amazon Nova 2.
-"""
+"""Root cause agent — determines the probable cause of an incident from investigation data."""
 
 from google.adk.agents import Agent
 

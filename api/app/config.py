@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite+aiosqlite:///{_API_DIR / 'parakeet.db'}"
     cors_origins: list[str] = ["http://localhost:5173"]
 
-    # LLM model used by ADK agents (swap to a Nova 2 model ID for prod)
-    agent_model: str = "gemini-2.5-flash"
+    # LLM model used by ADK agents (via LiteLLM + OpenRouter)
+    agent_model: str = "litellm/openrouter/amazon/nova-2-lite-v1"
 
     # Use mock agents (deterministic, no LLM calls) for frontend development
     mock_agents: bool = False
