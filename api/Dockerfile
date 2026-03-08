@@ -15,6 +15,10 @@ RUN pip install --no-cache-dir poetry
 
 COPY pyproject.toml poetry.lock ./
 
+# Pre-install CPU-only PyTorch into the venv (~200MB vs ~2GB GPU build)
+RUN python -m venv .venv && \
+    .venv/bin/pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 RUN --mount=type=cache,target=/root/.cache/pypoetry \
     poetry install --only main --no-root --no-directory
 
