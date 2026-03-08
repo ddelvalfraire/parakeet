@@ -64,10 +64,16 @@ def _extract_tool_calls(events: list) -> list[dict[str, Any]]:
 async def _run_agent(agent: Agent, message: str, session_id: str) -> list[dict[str, Any]]:
     """Run an ADK agent and return its tool calls."""
     runner = InMemoryRunner(agent=agent, app_name=APP_NAME)
+    # ADK requires a session to exist before run_async; use a unique ID per
+    # agent call so sessions don't collide across pipeline stages.
+    agent_session_id = f"{session_id}-{agent.name}"
+    await runner.session_service.create_session(
+        app_name=APP_NAME, user_id="pipeline", session_id=agent_session_id,
+    )
     events = []
     async for event in runner.run_async(
         user_id="pipeline",
-        session_id=session_id,
+        session_id=agent_session_id,
         new_message=types.Content(
             parts=[types.Part(text=message)],
             role="user",
