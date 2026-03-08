@@ -70,7 +70,7 @@ export default function RemediationCard({
   const [manualDialogOpen, setManualDialogOpen] = useState(false)
 
   const hasPR = !!payload.pr
-  const options = options ?? []
+  const options = payload.options ?? []
   const maxConfidence = options.length > 0
     ? Math.max(...options.map((o) => o.confidence))
     : 0
