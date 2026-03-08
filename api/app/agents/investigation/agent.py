@@ -148,6 +148,6 @@ root_agent = AgentConfig(
         StructuredTool.from_function(report_log_findings),
         StructuredTool.from_function(report_affected_service),
         StructuredTool.from_function(report_impact_summary),
-        StructuredTool.from_function(coroutine=get_similar_past_incidents),
+        get_similar_past_incidents,
     ],
 )

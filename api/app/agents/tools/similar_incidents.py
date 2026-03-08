@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from langchain_core.tools import tool
 
+
+@tool
 async def get_similar_past_incidents(
     service: str,
     summary: str,
