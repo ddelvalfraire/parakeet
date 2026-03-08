@@ -140,7 +140,10 @@ async def run_triage_to_remediation(
         alert_msg = _build_alert_message(alert)
         triage_calls = await _run_agent(triage_agent, alert_msg, session_id)
         triage_data = next(
-            (c["args"] for c in triage_calls if c["name"] == "classify_alert"), None
+            (c["result"] for c in triage_calls
+             if c["name"] == "classify_alert"
+             and isinstance(c.get("result"), dict)),
+            None,
         )
 
         if triage_data:
@@ -204,11 +207,21 @@ async def run_triage_to_remediation(
         inv_calls = await _run_agent(investigation_agent, inv_msg, session_id)
 
         log_findings = next(
-            (c["args"] for c in inv_calls if c["name"] == "report_log_findings"), None
+            (c["result"] for c in inv_calls
+             if c["name"] == "report_log_findings"
+             and isinstance(c.get("result"), dict)),
+            None,
         )
-        affected = [c["args"] for c in inv_calls if c["name"] == "report_affected_service"]
+        affected = [
+            c["result"] for c in inv_calls
+            if c["name"] == "report_affected_service"
+            and isinstance(c.get("result"), dict)
+        ]
         impact = next(
-            (c["args"] for c in inv_calls if c["name"] == "report_impact_summary"), None
+            (c["result"] for c in inv_calls
+             if c["name"] == "report_impact_summary"
+             and isinstance(c.get("result"), dict)),
+            None,
         )
 
         inv_data = {
@@ -256,7 +269,10 @@ async def run_triage_to_remediation(
         rc_msg = "\n\n".join(context_parts)
         rc_calls = await _run_agent(root_cause_agent, rc_msg, session_id)
         rc_data = next(
-            (c["args"] for c in rc_calls if c["name"] == "report_root_cause"), None
+            (c["result"] for c in rc_calls
+             if c["name"] == "report_root_cause"
+             and isinstance(c.get("result"), dict)),
+            None,
         )
 
         if rc_data:
@@ -430,18 +446,12 @@ async def run_retro(
 
     retro_msg = "\n".join(context_lines)
     retro_calls = await _run_agent(retro_agent, retro_msg, incident_id)
-    retro_args = next(
-        (c["args"] for c in retro_calls if c["name"] == "write_post_mortem"), None
+    retro_data = next(
+        (c["result"] for c in retro_calls
+         if c["name"] == "write_post_mortem"
+         and isinstance(c.get("result"), dict)),
+        None,
     )
-
-    # Restructure flat tool args into the nested PostMortem shape
-    retro_data: dict[str, Any] | None = None
-    if retro_args:
-        retro_data = dict(retro_args)
-        retro_data["impact"] = {
-            "users_affected": retro_data.pop("users_affected", "unknown"),
-            "services_degraded": retro_data.pop("services_degraded", []),
-        }
 
     if retro_data:
         await _update_status(
