@@ -54,7 +54,7 @@ export const mockClient: ApiClient = {
 
   async listScenarios(): Promise<ListScenariosResponse> {
     await delay()
-    return { scenarios: [] }
+    return { scenarios: [], demo_active: false }
   },
 
   async startDemo(_req: StartDemoRequest): Promise<StartDemoResponse> {
