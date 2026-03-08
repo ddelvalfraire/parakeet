@@ -70,8 +70,9 @@ export default function RemediationCard({
   const [manualDialogOpen, setManualDialogOpen] = useState(false)
 
   const hasPR = !!payload.pr
-  const maxConfidence = payload.options.length > 0
-    ? Math.max(...payload.options.map((o) => o.confidence))
+  const options = options ?? []
+  const maxConfidence = options.length > 0
+    ? Math.max(...options.map((o) => o.confidence))
     : 0
 
   function handleApproveClick(option: RemediationOption) {
@@ -112,7 +113,7 @@ export default function RemediationCard({
     }
   }
 
-  if (!payload.options.length && !hasPR) {
+  if (!options.length && !hasPR) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
         <div className="flex items-center gap-2">
@@ -205,7 +206,7 @@ export default function RemediationCard({
         )}
 
         {/* Standard remediation options */}
-        {payload.options.map((option) => {
+        {options.map((option) => {
           const isRecommended = option.confidence === maxConfidence && !hasPR
           const pct = Math.round(option.confidence * 100)
 
