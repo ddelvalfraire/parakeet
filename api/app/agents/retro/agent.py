@@ -172,7 +172,7 @@ For P3/P4 incidents, the retro should still be thorough but:
 
 root_agent = Agent(
     name="retro",
-    model=settings.agent_model,
+    model=settings.adk_model,
     description="Generates a post-mortem report from a resolved incident.",
     instruction=RETRO_INSTRUCTION,
     tools=[write_post_mortem],

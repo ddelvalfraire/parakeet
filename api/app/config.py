@@ -1,3 +1,4 @@
+from functools import cached_property
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
@@ -10,7 +11,13 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
 
     # LLM model used by ADK agents (via LiteLLM + OpenRouter)
-    agent_model: str = "litellm/openrouter/amazon/nova-2-lite-v1"
+    agent_model: str = "openrouter/amazon/nova-2-lite-v1"
+
+    @cached_property
+    def adk_model(self):
+        """Wrap agent_model in LiteLlm for ADK compatibility."""
+        from google.adk.models.lite_llm import LiteLlm
+        return LiteLlm(model=self.agent_model)
 
     # Use mock agents (deterministic, no LLM calls) for frontend development
     mock_agents: bool = False

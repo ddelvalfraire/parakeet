@@ -143,7 +143,7 @@ narrow down faster.
 
 root_agent = Agent(
     name="investigation",
-    model=settings.agent_model,
+    model=settings.adk_model,
     description=(
         "Investigates incidents by analysing logs,"
         " mapping blast radius, and estimating impact."
