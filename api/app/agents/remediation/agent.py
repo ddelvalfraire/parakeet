@@ -141,7 +141,7 @@ best balances confidence, risk, and recovery time for the incident severity.
 
 root_agent = Agent(
     name="remediation",
-    model=settings.agent_model,
+    model=settings.adk_model,
     description="Proposes ranked remediation options for an incident based on root cause analysis.",
     instruction=REMEDIATION_INSTRUCTION,
     tools=[propose_remediation],
@@ -367,7 +367,7 @@ def create_demo_remediation_agent(
 
     return Agent(
         name="remediation-demo",
-        model=settings.agent_model,
+        model=settings.adk_model,
         description="Finds bugs in code and opens GitHub PRs with fixes.",
         instruction=REMEDIATION_INSTRUCTION + DEMO_INSTRUCTION_ADDON,
         tools=[
