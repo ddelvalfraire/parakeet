@@ -45,13 +45,23 @@ def propose_remediation(
     Returns:
         The remediation option dict.
     """
+    # Clamp / coerce to guarantee valid values regardless of LLM output
+    try:
+        confidence = max(0.0, min(1.0, float(confidence)))
+    except (TypeError, ValueError):
+        confidence = 0.5
+    if risk_level not in ("low", "medium", "high"):
+        risk_level = "medium"
+    if not isinstance(steps, list):
+        steps = [str(steps)] if steps else []
+
     return {
-        "id": option_id,
-        "title": title,
-        "description": description,
+        "id": option_id or "unknown",
+        "title": title or "Untitled option",
+        "description": description or "",
         "confidence": confidence,
         "risk_level": risk_level,
-        "estimated_recovery_time": estimated_recovery_time,
+        "estimated_recovery_time": estimated_recovery_time or "unknown",
         "steps": steps,
     }
 
@@ -314,40 +324,49 @@ def create_demo_remediation_agent(
         Returns:
             Dict with 'pr_number', 'pr_url', 'diff', 'file_path', 'branch'.
         """
-        cached = _file_cache.get(file_path)
-        if not cached:
-            cached = await github.get_file_content(file_path)
-            _file_cache[file_path] = cached
-
-        branch = scenario.branch_name(incident_id)
-
-        # Get HEAD, create branch, commit fix, open PR
-        head_sha = await github.get_head_sha()
-
-        # Clean up branch if it already exists
         try:
-            await github.delete_branch(branch)
-        except Exception:
-            pass
+            cached = _file_cache.get(file_path)
+            if not cached:
+                cached = await github.get_file_content(file_path)
+                _file_cache[file_path] = cached
 
-        await github.create_branch(branch, head_sha)
-        await github.update_file(
-            file_path,
-            fixed_content,
-            f"fix: {title}",
-            branch,
-            cached["sha"],
-        )
-        pr = await github.create_pr(title, description, branch)
-        diff = await github.get_pr_diff(pr["number"])
+            branch = scenario.branch_name(incident_id)
 
-        return {
-            "pr_number": pr["number"],
-            "pr_url": pr["html_url"],
-            "diff": diff,
-            "file_path": file_path,
-            "branch": branch,
-        }
+            head_sha = await github.get_head_sha()
+
+            try:
+                await github.delete_branch(branch)
+            except Exception:
+                pass
+
+            await github.create_branch(branch, head_sha)
+            await github.update_file(
+                file_path,
+                fixed_content,
+                f"fix: {title}",
+                branch,
+                cached["sha"],
+            )
+            pr = await github.create_pr(title, description, branch)
+            diff = await github.get_pr_diff(pr["number"])
+
+            return {
+                "pr_number": pr["number"],
+                "pr_url": pr["html_url"],
+                "diff": diff,
+                "file_path": file_path,
+                "branch": branch,
+            }
+        except Exception as exc:
+            logger.exception("open_fix_pr failed for %s", file_path)
+            return {
+                "pr_number": 0,
+                "pr_url": "",
+                "diff": "",
+                "file_path": file_path,
+                "branch": "",
+                "error": str(exc),
+            }
 
     return AgentConfig(
         name="remediation-demo",

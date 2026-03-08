@@ -322,9 +322,17 @@ async def run_triage_to_remediation(
             rem_calls = await _run_agent(demo_agent, rem_msg, session_id)
 
             pr_data = next(
-                (c["result"] for c in rem_calls if c["name"] == "open_fix_pr" and "result" in c), None
+                (c["result"] for c in rem_calls
+                 if c["name"] == "open_fix_pr"
+                 and isinstance(c.get("result"), dict)
+                 and c["result"].get("pr_url")),
+                None,
             )
-            options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
+            options = [
+                c["result"] for c in rem_calls
+                if c["name"] == "propose_remediation"
+                and isinstance(c.get("result"), dict)
+            ]
             rem_data: dict[str, Any] = {"options": options}
             if pr_data:
                 rem_data["pr"] = pr_data
@@ -332,7 +340,11 @@ async def run_triage_to_remediation(
             # Standard path: generic remediation options
             rem_msg = "\n\n".join(context_parts)
             rem_calls = await _run_agent(remediation_agent, rem_msg, session_id)
-            options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
+            options = [
+                c["result"] for c in rem_calls
+                if c["name"] == "propose_remediation"
+                and isinstance(c.get("result"), dict)
+            ]
             rem_data = {"options": options}
 
         if not rem_data.get("options") and not rem_data.get("pr"):

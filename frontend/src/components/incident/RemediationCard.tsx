@@ -69,10 +69,11 @@ export default function RemediationCard({
   const [approveError, setApproveError] = useState<string | null>(null)
   const [manualDialogOpen, setManualDialogOpen] = useState(false)
 
-  const hasPR = !!payload.pr
-  const options = payload.options ?? []
+  const pr = payload.pr
+  const hasPR = !!pr?.pr_url
+  const options = Array.isArray(payload.options) ? payload.options : []
   const maxConfidence = options.length > 0
-    ? Math.max(...options.map((o) => o.confidence))
+    ? Math.max(...options.map((o) => o.confidence ?? 0))
     : 0
 
   function handleApproveClick(option: RemediationOption) {
@@ -152,19 +153,19 @@ export default function RemediationCard({
     <>
       <div className="space-y-3">
         {/* PR Fix Section */}
-        {hasPR && (
+        {hasPR && pr && (
           <div className="rounded-lg border bg-card p-4 space-y-3 ring-2 ring-green-500/30 border-green-200 dark:border-green-800">
             <div className="flex items-center gap-2 flex-wrap">
               <GitPullRequest className="h-4 w-4 text-green-600" />
               <h4 className="text-sm font-semibold">
-                Pull Request #{payload.pr!.pr_number}
+                Pull Request #{pr.pr_number}
               </h4>
               <Badge className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 gap-1">
                 <Star className="h-3 w-3" />
                 Code Fix
               </Badge>
               <a
-                href={payload.pr!.pr_url}
+                href={pr.pr_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-auto inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
@@ -175,10 +176,10 @@ export default function RemediationCard({
             </div>
 
             <p className="text-xs text-muted-foreground font-mono">
-              {payload.pr!.file_path}
+              {pr.file_path}
             </p>
 
-            {payload.pr!.diff && <DiffView diff={payload.pr!.diff} />}
+            {pr.diff && <DiffView diff={pr.diff} />}
 
             {/* Action buttons */}
             {!approved && (
@@ -227,10 +228,12 @@ export default function RemediationCard({
                     Recommended
                   </Badge>
                 )}
-                <Badge className={riskConfig[option.risk_level].badge}>
-                  <Shield className="h-3 w-3" />
-                  {riskConfig[option.risk_level].label} risk
-                </Badge>
+                {riskConfig[option.risk_level] && (
+                  <Badge className={riskConfig[option.risk_level].badge}>
+                    <Shield className="h-3 w-3" />
+                    {riskConfig[option.risk_level].label} risk
+                  </Badge>
+                )}
               </div>
 
               <p className="text-sm text-muted-foreground">
@@ -254,7 +257,7 @@ export default function RemediationCard({
 
               {/* Steps */}
               <ol className="list-decimal list-inside space-y-1">
-                {option.steps.map((step, i) => (
+                {(option.steps ?? []).map((step, i) => (
                   <li
                     key={i}
                     className="text-xs text-muted-foreground font-mono leading-relaxed"
