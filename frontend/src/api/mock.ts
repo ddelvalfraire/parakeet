@@ -7,6 +7,13 @@ import type {
   SubmitActionRequest,
   SubmitActionResponse,
   GenerateRetroResponse,
+  ListScenariosResponse,
+  StartDemoRequest,
+  StartDemoResponse,
+  ResetDemoResponse,
+  MergeFixRequest,
+  ResolveManuallyRequest,
+  SimilarIncidentsResponse,
 } from '@/types/api'
 import {
   INCIDENT_SUMMARIES,
@@ -43,5 +50,38 @@ export const mockClient: ApiClient = {
   async generateRetro(_incidentId: string): Promise<GenerateRetroResponse> {
     await delay(800)
     return { post_mortem: POSTMORTEM_FIXTURE }
+  },
+
+  async listScenarios(): Promise<ListScenariosResponse> {
+    await delay()
+    return { scenarios: [] }
+  },
+
+  async startDemo(_req: StartDemoRequest): Promise<StartDemoResponse> {
+    await delay()
+    return { incident: INCIDENT_SUMMARIES[0] }
+  },
+
+  async resetDemo(): Promise<ResetDemoResponse> {
+    await delay()
+    return { success: true, prs_closed: 0, branches_deleted: 0 }
+  },
+
+  async mergeFix(_incidentId: string, _req: MergeFixRequest): Promise<SubmitActionResponse> {
+    await delay()
+    return { success: true, incident_status: 'resolving' }
+  },
+
+  async resolveManually(
+    _incidentId: string,
+    _req: ResolveManuallyRequest,
+  ): Promise<SubmitActionResponse> {
+    await delay()
+    return { success: true, incident_status: 'resolved' }
+  },
+
+  async getSimilarIncidents(_incidentId: string): Promise<SimilarIncidentsResponse> {
+    await delay()
+    return { similar: [], query_incident_id: _incidentId }
   },
 }
