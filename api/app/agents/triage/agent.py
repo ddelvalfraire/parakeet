@@ -2,7 +2,6 @@
 
 from langchain_core.tools import StructuredTool
 
-from app.agents.callbacks import patch_empty_tool_descriptions
 from app.agents.policies import severity_policy_as_prompt
 from app.agents.runner import AgentConfig
 
