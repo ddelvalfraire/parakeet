@@ -20,6 +20,7 @@ const PIPELINE_ORDER: IncidentStatus[] = [
   'triaging',
   'investigating',
   'root_cause',
+  'remediating',
   'awaiting_approval',
   'resolving',
   'resolved',

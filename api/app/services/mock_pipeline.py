@@ -580,14 +580,14 @@ async def run_triage_to_remediation(
     if await _simulate_error(db, ws, incident, "root_cause"):
         return
     rc_data = _mock_demo_root_cause(scenario) if scenario else _mock_root_cause(alert, inv_data)
-    await _update_status(db, incident, IncidentStatus.awaiting_approval)
+    await _update_status(db, incident, IncidentStatus.remediating)
     await _save_event(
         db, incident_id, IncidentStatus.root_cause.value,
         "Root cause identified", rc_data,
     )
     await db.commit()
     await _broadcast(ws, incident_id, WSEventType.stage_change, {
-        "stage": IncidentStatus.awaiting_approval.value,
+        "stage": IncidentStatus.remediating.value,
         "root_cause": rc_data,
     })
 
@@ -595,11 +595,21 @@ async def run_triage_to_remediation(
     await asyncio.sleep(STAGE_DELAY)
     if await _simulate_error(db, ws, incident, "remediation"):
         return
+    await _save_event(
+        db, incident_id, IncidentStatus.remediating.value,
+        "Planning remediation", {"stage": "remediating"},
+    )
+    await db.commit()
+    await _broadcast(ws, incident_id, WSEventType.stage_change, {
+        "stage": IncidentStatus.remediating.value,
+    })
+    await asyncio.sleep(STAGE_DELAY)
     if scenario:
         rem_data = _mock_demo_remediation(scenario)
     else:
         options = _mock_remediation(alert, rc_data)
         rem_data = {"options": options}
+    await _update_status(db, incident, IncidentStatus.awaiting_approval)
     await _save_event(
         db, incident_id, IncidentStatus.awaiting_approval.value,
         "Remediation options proposed", rem_data,

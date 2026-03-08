@@ -64,17 +64,24 @@ export const statusConfig: Record<IncidentStatus, StatusStyle> = {
     animate: true,
   },
   investigating: {
-    label: "Investigating",
+    label: "Collecting Evidence",
     badge: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
     icon: "text-blue-600 dark:text-blue-400",
     dot: "bg-blue-600 dark:bg-blue-400",
     animate: true,
   },
   root_cause: {
-    label: "Root Cause",
+    label: "Root Cause Analysis",
     badge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300",
     icon: "text-indigo-600 dark:text-indigo-400",
     dot: "bg-indigo-600 dark:bg-indigo-400",
+    animate: true,
+  },
+  remediating: {
+    label: "Planning Fix",
+    badge: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300",
+    icon: "text-cyan-600 dark:text-cyan-400",
+    dot: "bg-cyan-600 dark:bg-cyan-400",
     animate: true,
   },
   awaiting_approval: {

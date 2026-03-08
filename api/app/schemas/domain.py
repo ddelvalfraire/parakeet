@@ -5,6 +5,7 @@ class IncidentStatus(StrEnum):
     triaging = "triaging"
     investigating = "investigating"
     root_cause = "root_cause"
+    remediating = "remediating"
     awaiting_approval = "awaiting_approval"
     resolving = "resolving"
     resolved = "resolved"

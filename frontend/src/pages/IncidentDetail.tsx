@@ -293,6 +293,7 @@ export default function IncidentDetail() {
           <TimelineFeed
             events={incident.timeline}
             incidentId={incident.id}
+            currentStatus={incident.status}
             approved={isApproved}
             onApprove={handleApprove}
             onMergeFix={handleMergeFix}
