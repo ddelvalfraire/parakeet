@@ -49,7 +49,12 @@ async def run_agent(agent: AgentConfig, message: str) -> list[dict[str, Any]]:
     seen_calls: set[str] = set()
     tools_by_name = {t.name: t for t in agent.tools}
 
-    for _ in range(MAX_ITERATIONS):
+    logger.info(
+        "Agent %s starting — tools: %s",
+        agent.name, [t.name for t in agent.tools],
+    )
+
+    for iteration in range(MAX_ITERATIONS):
         # Retry transient OpenRouter / provider errors with exponential backoff.
         for attempt in range(LLM_RETRIES):
             try:
@@ -67,6 +72,11 @@ async def run_agent(agent: AgentConfig, message: str) -> list[dict[str, Any]]:
         messages.append(response)
 
         if not response.tool_calls:
+            text_preview = (response.content or "")[:200]
+            logger.info(
+                "Agent %s iter %d — no tool calls, text: %s",
+                agent.name, iteration, text_preview,
+            )
             break
 
         # Detect if all tool calls this round are duplicates of previous calls.
@@ -76,6 +86,11 @@ async def run_agent(agent: AgentConfig, message: str) -> list[dict[str, Any]]:
         if round_keys.issubset(seen_calls):
             logger.debug("Agent %s repeated tool calls — stopping loop", agent.name)
             break
+
+        logger.info(
+            "Agent %s iter %d — tool calls: %s",
+            agent.name, iteration, [tc["name"] for tc in response.tool_calls],
+        )
 
         for tc in response.tool_calls:
             call = {"name": tc["name"], "args": tc["args"]}
@@ -94,4 +109,8 @@ async def run_agent(agent: AgentConfig, message: str) -> list[dict[str, Any]]:
                     ToolMessage(content="Unknown tool", tool_call_id=tc["id"])
                 )
 
+    logger.info(
+        "Agent %s finished — %d total tool calls: %s",
+        agent.name, len(all_tool_calls), [c["name"] for c in all_tool_calls],
+    )
     return all_tool_calls
