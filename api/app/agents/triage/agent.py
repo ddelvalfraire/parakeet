@@ -2,6 +2,7 @@
 
 from google.adk.agents import Agent
 
+from app.agents.callbacks import patch_empty_tool_descriptions
 from app.agents.policies import severity_policy_as_prompt
 from app.config import settings
 
@@ -105,4 +106,5 @@ root_agent = Agent(
     description="Classifies incoming monitoring alerts by severity, category, and tags.",
     instruction=TRIAGE_INSTRUCTION,
     tools=[classify_alert],
+    before_model_callback=patch_empty_tool_descriptions,
 )
