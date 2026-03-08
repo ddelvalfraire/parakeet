@@ -101,7 +101,7 @@ When evidence is insufficient to distinguish between severities, round UP
 
 root_agent = Agent(
     name="triage",
-    model=settings.agent_model,
+    model=settings.adk_model,
     description="Classifies incoming monitoring alerts by severity, category, and tags.",
     instruction=TRIAGE_INSTRUCTION,
     tools=[classify_alert],

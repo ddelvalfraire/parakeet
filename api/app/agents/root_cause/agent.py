@@ -97,7 +97,7 @@ adjust your confidence score upward — recurring patterns are strong evidence.
 
 root_agent = Agent(
     name="root_cause",
-    model=settings.agent_model,
+    model=settings.adk_model,
     description="Determines the probable root cause of an incident from investigation findings.",
     instruction=ROOT_CAUSE_INSTRUCTION,
     tools=[report_root_cause, get_similar_past_incidents],
