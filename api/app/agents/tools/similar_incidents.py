@@ -2,25 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import atexit
-import concurrent.futures
-
-# Shared pool — avoids creating/destroying a pool per tool call.
-_ASYNC_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-atexit.register(_ASYNC_POOL.shutdown, wait=False)
-
-
-def _run_async(coro):
-    """Run an async coroutine from a sync ADK tool function.
-
-    ADK tool functions are synchronous, but the pipeline runs inside an async
-    event loop.  ``loop.run_until_complete()`` would raise
-    ``RuntimeError: This event loop is already running``.  We work around this
-    by executing the coroutine in a *new* event loop on a background thread.
-    """
-    return _ASYNC_POOL.submit(asyncio.run, coro).result()
-
 
 def get_similar_past_incidents(
     service: str,
@@ -43,6 +24,8 @@ def get_similar_past_incidents(
         incident_id, service, severity, summary, root_cause,
         remediation_taken, resolved_at, and similarity_score (0-1).
     """
+    import asyncio
+
     from app.database import async_session_factory
     from app.services.embedding import get_embedding_service
     from app.services.similar_incidents import SimilarIncidentService
@@ -55,4 +38,5 @@ def get_similar_past_incidents(
             )
             return [r.model_dump() for r in results]
 
-    return _run_async(_query())
+    # LangChain tool calls run in a thread, so we can use asyncio.run directly.
+    return asyncio.run(_query())

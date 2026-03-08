@@ -11,16 +11,19 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite+aiosqlite:///{_API_DIR / 'parakeet.db'}"
     cors_origins: list[str] = ["http://localhost:5173"]
 
-    # LLM model used by ADK agents (via LiteLLM + OpenRouter)
-    agent_model: str = "openrouter/amazon/nova-2-lite-v1"
+    # LLM model used by agents (via OpenAI SDK + OpenRouter)
+    agent_model: str = "amazon/nova-2-lite-v1"
 
     @cached_property
-    def adk_model(self):
-        """Wrap agent_model in LiteLlm for ADK compatibility."""
-        from google.adk.models.lite_llm import LiteLlm
-        return LiteLlm(
+    def llm(self):
+        """Return a ChatOpenAI instance configured for OpenRouter."""
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
             model=self.agent_model,
-            api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+            api_key=os.environ.get("OPENROUTER_API_KEY") or "missing",
+            base_url="https://openrouter.ai/api/v1",
+            temperature=0,
         )
 
     # Use mock agents (deterministic, no LLM calls) for frontend development

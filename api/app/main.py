@@ -28,7 +28,7 @@ async def lifespan(_app: FastAPI):
     if settings.mock_agents:
         logger.info("Mock agents ENABLED — no LLM calls will be made")
     else:
-        logger.info("Using ADK agents (model=%s)", settings.agent_model)
+        logger.info("Using LangChain agents (model=%s)", settings.agent_model)
 
     # GitHub service for live demo remediation
     if settings.github_token and settings.demo_repo:
