@@ -1,8 +1,4 @@
-"""Retro agent — generates a post-mortem report from a resolved incident.
-
-Uses Google ADK with Gemini for development.
-Production will swap to Amazon Nova 2.
-"""
+"""Retro agent — generates a post-mortem report from a resolved incident."""
 
 from typing import Literal
 
