@@ -1,0 +1,25 @@
+services:
+  api:
+    build: ./api
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PARAKEET_DATABASE_URL=sqlite+aiosqlite:////app/data/parakeet.db
+      - PARAKEET_MOCK_AGENTS=${PARAKEET_MOCK_AGENTS:-true}
+      - PARAKEET_CORS_ORIGINS=https://parakeet.daves-wave.dev
+      - PARAKEET_GITHUB_TOKEN=${PARAKEET_GITHUB_TOKEN:-}
+      - PARAKEET_DEMO_REPO=${PARAKEET_DEMO_REPO:-}
+      - PARAKEET_DEMO_BASE_SHA=${PARAKEET_DEMO_BASE_SHA:-}
+    volumes:
+      - db-data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:
