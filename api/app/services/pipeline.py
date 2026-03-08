@@ -276,14 +276,14 @@ async def run_triage_to_remediation(
         )
 
         if rc_data:
-            await _update_status(db, incident, IncidentStatus.awaiting_approval)
+            await _update_status(db, incident, IncidentStatus.remediating)
             await _save_event(
                 db, incident_id, IncidentStatus.root_cause.value,
                 "Root cause identified", rc_data,
             )
             await db.commit()
             await _broadcast(ws, incident_id, WSEventType.stage_change, {
-                "stage": IncidentStatus.awaiting_approval.value,
+                "stage": IncidentStatus.remediating.value,
                 "root_cause": rc_data,
             })
             context_parts.append(f"Root cause: {json.dumps(rc_data)}")
@@ -330,6 +330,16 @@ async def run_triage_to_remediation(
 
     # --- 4. Remediation ---
     try:
+        # Broadcast a "planning fix" event so the UI shows progress
+        await _save_event(
+            db, incident_id, IncidentStatus.remediating.value,
+            "Planning remediation", {"stage": "remediating"},
+        )
+        await db.commit()
+        await _broadcast(ws, incident_id, WSEventType.stage_change, {
+            "stage": IncidentStatus.remediating.value,
+        })
+
         scenario = SCENARIOS.get(incident.demo_scenario_id or "")
         if scenario and github:
             # GitHub path: explorer finds the bug, fixer opens a PR
@@ -429,6 +439,7 @@ async def run_triage_to_remediation(
             })
             return
 
+        await _update_status(db, incident, IncidentStatus.awaiting_approval)
         await _save_event(
             db, incident_id, IncidentStatus.awaiting_approval.value,
             "Remediation options proposed", rem_data,
