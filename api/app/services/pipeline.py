@@ -322,7 +322,7 @@ async def run_triage_to_remediation(
             rem_calls = await _run_agent(demo_agent, rem_msg, session_id)
 
             pr_data = next(
-                (c["args"] for c in rem_calls if c["name"] == "open_fix_pr"), None
+                (c["result"] for c in rem_calls if c["name"] == "open_fix_pr" and "result" in c), None
             )
             options = [c["args"] for c in rem_calls if c["name"] == "propose_remediation"]
             rem_data: dict[str, Any] = {"options": options}
