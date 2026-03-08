@@ -100,6 +100,7 @@ async def run_agent(agent: AgentConfig, message: str) -> list[dict[str, Any]]:
             tool = tools_by_name.get(tc["name"])
             if tool:
                 result = await tool.ainvoke(tc["args"])
+                call["result"] = result
                 messages.append(
                     ToolMessage(content=str(result), tool_call_id=tc["id"])
                 )
