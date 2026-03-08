@@ -80,6 +80,13 @@ async def submit_action(
     )
     if new_status is None:
         raise HTTPException(status_code=404, detail="Incident not found")
+
+    # Kick off retro in background
+    async def _run_retro(iid: str) -> None:
+        async with async_session_factory() as retro_db:
+            await run_retro(retro_db, ws_manager, iid)
+
+    asyncio.create_task(_run_retro(incident_id)).add_done_callback(log_task_exception)
     return SubmitActionResponse(success=True, incident_status=new_status)
 
 
