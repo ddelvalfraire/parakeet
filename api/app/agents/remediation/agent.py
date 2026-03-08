@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal
 
@@ -215,11 +214,7 @@ def create_demo_remediation_agent(
     # Stash file metadata from read_repo_file for use in open_fix_pr
     _file_cache: dict[str, dict] = {}
 
-    def _run_async(coro):
-        """Run an async coroutine from a sync LangChain tool."""
-        return asyncio.run(coro)
-
-    def list_repo_directory(path: str = "") -> list[dict]:
+    async def list_repo_directory(path: str = "") -> list[dict]:
         """List files and directories at a path in the demo GitHub repository.
 
         Use this to explore the repo structure and locate source files.
@@ -234,9 +229,9 @@ def create_demo_remediation_agent(
             List of dicts, each with 'name', 'type' ("file" or "dir"),
             and 'path' (full path from repo root).
         """
-        return _run_async(github.list_directory(path))
+        return await github.list_directory(path)
 
-    def search_repo_code(query: str) -> list[dict]:
+    async def search_repo_code(query: str) -> list[dict]:
         """Search for code in the repository by keyword, function name, or error string.
 
         Use this FIRST to locate relevant files and symbols before reading files.
@@ -250,9 +245,9 @@ def create_demo_remediation_agent(
             List of dicts, each with 'path' (file path), 'name' (filename),
             and 'fragments' (list of code snippets showing the match in context).
         """
-        return _run_async(github.search_code(query))
+        return await github.search_code(query)
 
-    def read_repo_file(file_path: str, start_line: int = 0, end_line: int = 0) -> dict:
+    async def read_repo_file(file_path: str, start_line: int = 0, end_line: int = 0) -> dict:
         """Read a file (or a line range) from the demo GitHub repository.
 
         When start_line and end_line are both 0, returns the full file.
@@ -274,7 +269,7 @@ def create_demo_remediation_agent(
         # Always fetch and cache the full file (needed for open_fix_pr later)
         cached = _file_cache.get(file_path)
         if not cached:
-            cached = _run_async(github.get_file_content(file_path))
+            cached = await github.get_file_content(file_path)
             _file_cache[file_path] = cached
 
         full_content = cached["content"]
@@ -298,7 +293,7 @@ def create_demo_remediation_agent(
             "total_lines": total_lines,
         }
 
-    def open_fix_pr(
+    async def open_fix_pr(
         file_path: str,
         fixed_content: str,
         title: str,
@@ -317,32 +312,30 @@ def create_demo_remediation_agent(
         """
         cached = _file_cache.get(file_path)
         if not cached:
-            cached = _run_async(github.get_file_content(file_path))
+            cached = await github.get_file_content(file_path)
             _file_cache[file_path] = cached
 
         branch = scenario.branch_name(incident_id)
 
         # Get HEAD, create branch, commit fix, open PR
-        head_sha = _run_async(github.get_head_sha())
+        head_sha = await github.get_head_sha()
 
         # Clean up branch if it already exists
         try:
-            _run_async(github.delete_branch(branch))
+            await github.delete_branch(branch)
         except Exception:
             pass
 
-        _run_async(github.create_branch(branch, head_sha))
-        _run_async(
-            github.update_file(
-                file_path,
-                fixed_content,
-                f"fix: {title}",
-                branch,
-                cached["sha"],
-            )
+        await github.create_branch(branch, head_sha)
+        await github.update_file(
+            file_path,
+            fixed_content,
+            f"fix: {title}",
+            branch,
+            cached["sha"],
         )
-        pr = _run_async(github.create_pr(title, description, branch))
-        diff = _run_async(github.get_pr_diff(pr["number"]))
+        pr = await github.create_pr(title, description, branch)
+        diff = await github.get_pr_diff(pr["number"])
 
         return {
             "pr_number": pr["number"],
@@ -356,10 +349,10 @@ def create_demo_remediation_agent(
         name="remediation-demo",
         instruction=REMEDIATION_INSTRUCTION + DEMO_INSTRUCTION_ADDON,
         tools=[
-            StructuredTool.from_function(search_repo_code),
-            StructuredTool.from_function(list_repo_directory),
-            StructuredTool.from_function(read_repo_file),
-            StructuredTool.from_function(open_fix_pr),
+            StructuredTool.from_function(coroutine=search_repo_code),
+            StructuredTool.from_function(coroutine=list_repo_directory),
+            StructuredTool.from_function(coroutine=read_repo_file),
+            StructuredTool.from_function(coroutine=open_fix_pr),
             StructuredTool.from_function(propose_remediation),
         ],
     )
