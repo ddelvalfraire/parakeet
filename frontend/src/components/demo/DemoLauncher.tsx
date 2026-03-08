@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FlaskConical, Play, RotateCcw } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { DemoScenario } from '@/types'
 
@@ -28,7 +29,6 @@ export default function DemoLauncher() {
   const [launching, setLaunching] = useState<string | null>(null)
   const [resetting, setResetting] = useState(false)
   const [demoActive, setDemoActive] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const fetchScenarios = useCallback(async () => {
     try {
@@ -48,13 +48,22 @@ export default function DemoLauncher() {
 
   async function handleLaunch(scenarioId: string) {
     setLaunching(scenarioId)
-    setError(null)
     try {
       const res = await api.startDemo({ scenario_id: scenarioId })
       setDemoActive(true)
       navigate(`/incident/${res.incident.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to launch demo')
+      const raw = err instanceof Error ? err.message : 'Failed to launch demo'
+      // Parse FastAPI error detail if present
+      let message = raw
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed.detail) message = parsed.detail
+      } catch {
+        // not JSON, use raw
+      }
+      toast.error(message)
+      setDemoActive(true)
       setLaunching(null)
     }
   }
@@ -64,8 +73,9 @@ export default function DemoLauncher() {
     try {
       await api.resetDemo()
       setDemoActive(false)
+      toast.success('Demo reset — ready to launch again')
     } catch {
-      // ignore
+      toast.error('Failed to reset demo')
     } finally {
       setResetting(false)
     }
@@ -116,10 +126,6 @@ export default function DemoLauncher() {
           Reset Demo
         </Button>
       </div>
-
-      {error && (
-        <p className="text-xs text-destructive mb-2">{error}</p>
-      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {scenarios.map(scenario => (
