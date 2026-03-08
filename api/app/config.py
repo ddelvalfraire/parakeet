@@ -1,3 +1,4 @@
+import os
 from functools import cached_property
 from pathlib import Path
 
@@ -17,7 +18,11 @@ class Settings(BaseSettings):
     def adk_model(self):
         """Wrap agent_model in LiteLlm for ADK compatibility."""
         from google.adk.models.lite_llm import LiteLlm
-        return LiteLlm(model=self.agent_model)
+        return LiteLlm(
+            model=self.agent_model,
+            api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+            api_base="https://openrouter.ai/api/v1",
+        )
 
     # Use mock agents (deterministic, no LLM calls) for frontend development
     mock_agents: bool = False
