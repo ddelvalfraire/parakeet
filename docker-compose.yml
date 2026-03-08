@@ -2,7 +2,7 @@ services:
   api:
     build: ./api
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - PARAKEET_DATABASE_URL=sqlite+aiosqlite:////app/data/parakeet.db
       - PARAKEET_MOCK_AGENTS=${PARAKEET_MOCK_AGENTS:-true}
       - PARAKEET_CORS_ORIGINS=https://parakeet.daves-wave.dev
