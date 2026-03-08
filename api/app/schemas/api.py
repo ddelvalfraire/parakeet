@@ -54,6 +54,7 @@ class DemoScenarioResponse(BaseModel):
 
 class ListScenariosResponse(BaseModel):
     scenarios: list[DemoScenarioResponse]
+    demo_active: bool = False
 
 
 class StartDemoRequest(BaseModel):

@@ -41,6 +41,8 @@ async def lifespan(_app: FastAPI):
             " and PARAKEET_DEMO_REPO to enable"
         )
 
+    _app.state.demo_active = False
+
     yield
 
     if getattr(_app.state, "github", None):
